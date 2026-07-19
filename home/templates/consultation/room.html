@@ -1,0 +1,2402 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultation Room - {{ patient_display_name }} & Dr. {{ doctor_display_name }}</title>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="{% static 'css/consultation-room.css' %}">
+    <link rel="stylesheet" href="{% static 'css/consultation-prescription.css' %}">
+    <link rel="stylesheet" href="{% static 'css/consultation-room-inline.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/responsive-compact.css' %}">
+</head>
+<body>
+    <!-- Consultation Room - Image Design Match -->
+    <div class="consultation-room">
+        <!-- Main Content Area -->
+        <div class="consultation-container">
+            {% if show_waiting_room %}
+            <div id="patientWaitingRoom" class="consultation-waiting-room">
+                <div class="waiting-room-card">
+                    <div class="waiting-room-icon">
+                        <i class="fas fa-user-md"></i>
+                    </div>
+                    <h1>{{ waiting_room_title }}</h1>
+                    <p>{{ waiting_room_message }}</p>
+                    <div class="waiting-room-status">
+                        <span class="waiting-pulse"></span>
+                        Checking consultation status...
+                    </div>
+                    <p class="waiting-room-note">Your browser may ask for camera and microphone permission when the call starts.</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if participant_role == 'doctor' and not consultation_started %}
+            <div id="doctorStartRoom" class="consultation-waiting-room doctor-start-room" {% if not show_doctor_start %}style="display: none;"{% endif %}>
+                <div class="waiting-room-card">
+                    <div class="waiting-room-icon">
+                        <i class="fas fa-video"></i>
+                    </div>
+                    <h1>Start Consultation</h1>
+                    <p>Start the secure video session when you are ready. The patient will be moved into the meeting automatically.</p>
+                    <button id="startConsultationBtn" class="btn-base btn-primary start-consultation-btn" type="button">
+                        <i class="fas fa-play"></i>
+                        Start Consultation
+                    </button>
+                    <p class="waiting-room-note">Your browser may ask for camera and microphone permission.</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <div id="rejoinScreen" class="consultation-waiting-room consultation-state-screen" style="display: none;">
+                <div class="waiting-room-card">
+                    <div class="waiting-room-icon"><i class="fas fa-rotate-right"></i></div>
+                    <h1>You left the meeting.</h1>
+                    <p id="rejoinMessage">You can rejoin the consultation if you still have attempts remaining.</p>
+                    <div class="waiting-room-status">Remaining rejoin attempts: <span id="remainingAttempts">{{ remaining_join_attempts }}</span></div>
+                    <button id="rejoinConsultationBtn" class="btn-base btn-primary start-consultation-btn" type="button">
+                        <i class="fas fa-video"></i>
+                        Rejoin Consultation
+                    </button>
+                </div>
+            </div>
+
+            <div id="expiredScreen" class="consultation-waiting-room consultation-state-screen" style="display: none;">
+                <div class="waiting-room-card">
+                    <div class="waiting-room-icon"><i class="fas fa-clock"></i></div>
+                    <h1>Consultation Window Expired</h1>
+                    <p>This consultation was available for 30 minutes from the scheduled start time.</p>
+                </div>
+            </div>
+
+            <div id="completedScreen" class="consultation-waiting-room consultation-state-screen" style="display: none;">
+                <div class="waiting-room-card">
+                    <div class="waiting-room-icon"><i class="fas fa-circle-check"></i></div>
+                    <h1>Consultation Completed</h1>
+                    <p id="completedMessage">This consultation has been completed.</p>
+                </div>
+            </div>
+
+            <!-- Video Section -->
+            <div id="meetingArea" class="meeting-area" {% if show_waiting_room or show_doctor_start %}style="display: none;"{% endif %}>
+            <div class="video-section">
+                <div id="doctorDisconnectedOverlay" class="doctor-disconnected-overlay" style="display: none;">
+                    <i class="fas fa-wifi"></i>
+                    <span>Doctor disconnected. Please wait for the doctor to rejoin.</span>
+                </div>
+                <div class="main-video-wrapper">
+                    <div class="main-video-container">
+                        <div id="jitsiMeetingFrame" class="jitsi-meeting-frame"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Controls -->
+            <div class="bottom-controls">
+                <div class="controls-container">
+                    <!-- Left Controls -->
+                    <div class="controls-left">
+                        <button id="toggleMic" class="control-btn" title="Microphone">
+                            <i class="fas fa-microphone-slash"></i>
+                        </button>
+                        <button id="toggleVideo" class="control-btn" title="Video">
+                            <i class="fas fa-video-slash"></i>
+                        </button>
+                        <button id="toggleScreen" class="control-btn" title="Share Screen">
+                            <i class="fas fa-desktop"></i>
+                        </button>
+                        <button id="raiseHand" class="control-btn" title="Raise Hand">
+                            <i class="fas fa-hand"></i>
+                        </button>
+                    </div>
+
+                    <!-- Center Timer -->
+                    <div class="controls-center">
+                        <div class="call-duration" id="callTimer">00:00</div>
+                    </div>
+
+                    <!-- Right Controls -->
+                    <div class="controls-right">
+                        {% if participant_role == 'doctor' %}
+                        <button id="completeConsultationBtn" class="control-btn complete-call-btn" title="Complete Consultation">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        {% endif %}
+                        <button id="chatToggle" class="control-btn" title="Chat">
+                            <i class="fas fa-comment"></i>
+                        </button>
+                        <button id="participantsToggle" class="control-btn" title="Participants">
+                            <i class="fas fa-users"></i>
+                        </button>
+                        <button id="endCall" class="control-btn end-call-btn" title="End Call">
+                            <i class="fas fa-phone-slash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="chat-container" id="chatPanel" style="display: none;">
+            <div class="chat-header">
+                <h3>Chat</h3>
+                <button id="closeChat" class="chat-close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="system-message">
+                    <strong>System:</strong> Welcome to consultation room
+                </div>
+                {% if realtime_notice %}
+                <div class="system-message">
+                    <strong>System:</strong> {{ realtime_notice }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="chat-input-container">
+                <input type="text" id="chatInput" placeholder="Type a message..." maxlength="500">
+                <button id="sendMessage" class="send-btn">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Participants Panel -->
+        <div class="participants-panel" id="participantsPanel" style="display: none;">
+            <div class="panel-header">
+                <h3>Participants</h3>
+                <button id="closeParticipants" class="panel-close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="participants-list" id="participantsList">
+                <!-- Remote Participant -->
+                <div class="participant-item" id="remoteParticipant">
+                    <div class="participant-avatar">
+                        <div class="remote-avatar" id="remoteAvatar">
+                            {% if request.user.role == 'patient' %}
+                                Dr. {{ doctor_display_name }}
+                            {% else %}
+                                {{ patient_display_name }}
+                            {% endif %}
+                        </div>
+                        <div class="speaking-indicator" id="remoteSpeaking">
+                            <i class="fas fa-microphone" id="remoteMicIcon"></i>
+                        </div>
+                    </div>
+                    <div class="participant-info">
+                        <div class="participant-name">
+                            {% if request.user.role == 'patient' %}
+                                Dr. {{ doctor_display_name }}
+                            {% else %}
+                                {{ patient_display_name }}
+                            {% endif %}
+                        </div>
+                        <div class="participant-status">
+                            <span class="status-dot offline"></span>
+                            <span id="remoteStatus">Not Connected</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Self Participant -->
+                <div class="participant-item self-participant">
+                    <div class="participant-avatar">
+                        <div class="self-avatar" id="selfAvatar">
+                            {{ request.user.get_full_name|default:request.user.username }}
+                        </div>
+                        <div class="speaking-indicator" id="selfSpeaking">
+                            <i class="fas fa-microphone-slash" id="selfMicIcon"></i>
+                        </div>
+                    </div>
+                    <div class="participant-info">
+                        <div class="participant-name">You</div>
+                        <div class="participant-status">
+                            <span class="status-dot online"></span>
+                            <span id="selfStatus">Voice Off</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Doctor Panel - Only for doctors -->
+        {% if request.user.role == 'doctor' %}
+        <button id="doctorPanelToggle" class="doctor-panel-toggle" type="button">
+            <i class="fas fa-prescription"></i>
+            Prescription & Tasks
+        </button>
+
+        <div class="doctor-panel doctor-panel-drawer" id="doctorPanelDrawer" aria-hidden="true">
+            <div class="doctor-panel-header">
+                <h3>Doctor's Consultation Panel</h3>
+                <div class="panel-actions">
+                    <input type="hidden" name="daily_tasks_json" id="dailyTasksJson" value="[]">
+                    <button id="saveAllData" class="btn-base btn-primary">
+                        <i class="fas fa-save"></i> Save All
+                    </button>
+                    <button id="closeDoctorPanel" class="doctor-panel-close" type="button" aria-label="Close panel">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="doctor-tabs">
+                <button class="doctor-tab-btn active" data-tab="notes">
+                    <i class="fas fa-notes-medical"></i> Consultation Notes
+                </button>
+                <button class="doctor-tab-btn" data-tab="prescription">
+                    <i class="fas fa-prescription"></i> Prescription
+                </button>
+                <button class="doctor-tab-btn" data-tab="tasks">
+                    <i class="fas fa-tasks"></i> Daily Tasks
+                </button>
+            </div>
+            
+            <!-- Consultation Notes Tab -->
+            <div class="doctor-tab-content active" id="notes-tab">
+                <div class="consultation-notes-section">
+                    <h4>Patient Symptoms & Consultation Notes</h4>
+                    <div class="notes-form">
+                        <div class="form-group">
+                            <label>Patient Symptoms</label>
+                            <textarea id="patientSymptoms" placeholder="Describe patient's symptoms, complaints, and observations..." rows="4"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Clinical Assessment</label>
+                            <textarea id="clinicalAssessment" placeholder="Clinical findings, diagnosis, and assessment..." rows="4"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Treatment Plan</label>
+                            <textarea id="treatmentPlan" placeholder="Recommended treatment approach and next steps..." rows="4"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Follow-up Notes</label>
+                            <textarea id="followUpNotes" placeholder="Follow-up instructions and recommendations..." rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Prescription Tab -->
+            <div class="doctor-tab-content" id="prescription-tab">
+                <div class="prescription-section">
+                    <h4>Medical Prescription</h4>
+                    <div class="prescription-form">
+                        <div class="form-group">
+                            <label>Prescription Details</label>
+                            <textarea id="prescriptionDetails" placeholder="Enter overall prescription details and instructions..." rows="3"></textarea>
+                        </div>
+                        
+                        <div class="medications-section">
+                            <h5>Medications</h5>
+                            <div id="medicationsList">
+                                <div class="medication-item">
+                                    <input type="text" placeholder="Medication name" class="med-name">
+                                    <input type="text" placeholder="Dosage (e.g., 500mg)" class="med-dosage">
+                                    <input type="text" placeholder="Frequency (e.g., 2x daily)" class="med-frequency">
+                                    <input type="text" placeholder="Duration (e.g., 7 days)" class="med-duration">
+                                    <button onclick="removeMedication(this)" class="btn-remove">×</button>
+                                </div>
+                            </div>
+                            <button type="button" onclick="addMedication()" class="btn-add-medication">
+                                <i class="fas fa-plus"></i> Add Medication
+                            </button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Special Instructions</label>
+                            <textarea id="prescriptionInstructions" placeholder="Special instructions for taking medications..." rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Daily Tasks Tab -->
+            <div class="doctor-tab-content" id="tasks-tab">
+                <div class="daily-tasks-section">
+                    <h4>Daily Health Tasks for Patient</h4>
+                    
+                    <div class="task-categories">
+                        <button class="task-category-btn active" data-category="all">All Tasks</button>
+                        <button class="task-category-btn" data-category="physical">Physical</button>
+                        <button class="task-category-btn" data-category="diet">Diet</button>
+                        <button class="task-category-btn" data-category="medical">Medical</button>
+                        <button class="task-category-btn" data-category="mental">Mental</button>
+                        <button class="task-category-btn" data-category="lifestyle">Lifestyle</button>
+                    </div>
+                    
+                    <div class="task-templates" id="taskTemplates">
+                        <!-- Task templates will be loaded here -->
+                    </div>
+                    
+                    <div class="custom-task-section">
+                        <h5>Create Custom Task</h5>
+                        <div class="custom-task-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <input type="text" id="customTaskTitle" placeholder="Task title">
+                                </div>
+                                <div class="form-group">
+                                    <select id="customTaskCategory">
+                                        <option value="physical">Physical</option>
+                                        <option value="diet">Diet</option>
+                                        <option value="medical">Medical</option>
+                                        <option value="mental">Mental</option>
+                                        <option value="lifestyle">Lifestyle</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <textarea id="customTaskDescription" placeholder="Task description..." rows="2"></textarea>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Duration (days)</label>
+                                    <input type="number" id="customTaskDuration" value="7" min="1" max="30">
+                                </div>
+                                <div class="form-group">
+                                    <label>Priority</label>
+                                    <select id="customTaskPriority">
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="button" id="addCustomTaskBtn" class="btn-add-task">
+                                <i class="fas fa-plus"></i> Add Custom Task
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="selected-tasks-summary">
+                        <h5>Selected Tasks (<span id="selectedTasksCount">0</span>)</h5>
+                        <div id="selectedTasksList">
+                            <p class="no-tasks-message">No tasks selected</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </main>
+
+    <!-- End Call Modal -->
+    <div id="endCallModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>End Consultation</h3>
+            <p>Are you sure you want to end this consultation?</p>
+            <div class="modal-actions">
+                <button id="cancelEndCall" class="btn-base">Cancel</button>
+                <button id="confirmEndCall" class="btn-base btn-danger">End Call</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://meet.jit.si/external_api.js"></script>
+    <script>
+        const debugLog = function () {};
+        // Fully Functional Consultation Room
+        class ConsultationRoom {
+            constructor() {
+                // State
+                this.jitsiApi = null;
+                this.isVideoOn = true;
+                this.isAudioOn = false;
+                this.isScreenSharing = false;
+                this.isConnected = false;
+                this.hasJoinedMeeting = false;
+                this.isJoining = false;
+                this.remainingAttempts = parseInt('{{ remaining_join_attempts|default:3 }}', 10);
+                this.consultationStarted = {{ consultation_started|yesno:"true,false" }};
+                this.canStartVideo = {{ consultation_access.can_start_video|yesno:"true,false" }};
+                
+                // Room info
+                this.roomId = '{{ jitsi_room_name|escapejs }}';
+                this.jitsiDomain = '{{ jitsi_domain|default:"meet.jit.si"|escapejs }}';
+                this.statusUrl = `/consultation/{{ appointment.id }}/status/`;
+                this.startUrl = `/consultation/{{ appointment.id }}/start/`;
+                this.registerJoinUrl = `/consultation/{{ appointment.id }}/register-join/`;
+                this.participantLeftUrl = `/consultation/{{ appointment.id }}/participant-left/`;
+                this.userId = '{{ request.user.id }}';
+                this.userName = '{{ request.user.get_full_name|default:request.user.username|escapejs }}';
+                this.userRole = '{{ participant_role|default:request.user.role }}';
+                
+                // Timer
+                this.startTime = Date.now();
+                this.timerInterval = null;
+                this.statusInterval = null;
+                this.waitingPollInterval = null;
+                
+                // Initialize
+                this.initializeElements();
+                this.initializeEventListeners();
+                this.initializeRoomFlow();
+            }
+            
+            initializeElements() {
+                this.jitsiContainer = document.getElementById('jitsiMeetingFrame');
+                this.waitingRoom = document.getElementById('patientWaitingRoom');
+                this.meetingArea = document.getElementById('meetingArea');
+                this.doctorStartRoom = document.getElementById('doctorStartRoom');
+                this.rejoinScreen = document.getElementById('rejoinScreen');
+                this.expiredScreen = document.getElementById('expiredScreen');
+                this.completedScreen = document.getElementById('completedScreen');
+                this.completedMessage = document.getElementById('completedMessage');
+                this.rejoinMessage = document.getElementById('rejoinMessage');
+                this.remainingAttemptsEl = document.getElementById('remainingAttempts');
+                this.doctorDisconnectedOverlay = document.getElementById('doctorDisconnectedOverlay');
+                this.startConsultationBtn = document.getElementById('startConsultationBtn');
+                this.rejoinConsultationBtn = document.getElementById('rejoinConsultationBtn');
+                
+                // Control buttons
+                this.toggleVideoBtn = document.getElementById('toggleVideo');
+                this.toggleMicBtn = document.getElementById('toggleMic');
+                this.toggleScreenBtn = document.getElementById('toggleScreen');
+                this.raiseHandBtn = document.getElementById('raiseHand');
+                this.endCallBtn = document.getElementById('endCall');
+                this.chatToggleBtn = document.getElementById('chatToggle');
+                this.participantsToggleBtn = document.getElementById('participantsToggle');
+                this.completeConsultationBtn = document.getElementById('completeConsultationBtn');
+                
+                // Panels
+                this.chatPanel = document.getElementById('chatPanel');
+                this.participantsPanel = document.getElementById('participantsPanel');
+                this.endCallModal = document.getElementById('endCallModal');
+                this.cancelEndCallBtn = document.getElementById('cancelEndCall');
+                this.confirmEndCallBtn = document.getElementById('confirmEndCall');
+                
+                // Chat elements
+                this.chatMessages = document.getElementById('chatMessages');
+                this.chatInput = document.getElementById('chatInput');
+                this.sendMessageBtn = document.getElementById('sendMessage');
+                
+                // Timer
+                this.callTimer = document.getElementById('callTimer');
+                
+                // Status elements
+                this.remoteStatus = document.getElementById('remoteStatus');
+                this.selfStatus = document.getElementById('selfStatus');
+                this.remoteSpeaking = document.getElementById('remoteSpeaking');
+                this.selfSpeaking = document.getElementById('selfSpeaking');
+                
+                // Participant elements
+                this.remoteParticipant = document.getElementById('remoteParticipant');
+                this.selfParticipant = document.querySelector('.self-participant');
+                
+                // Connection state
+                this.isConnected = false;
+                this.remoteUserConnected = false;
+            }
+            
+            initializeEventListeners() {
+                debugLog('Initializing event listeners...');
+                
+                // Video controls
+                if (this.toggleVideoBtn) {
+                    this.toggleVideoBtn.addEventListener('click', () => this.toggleVideo());
+                    debugLog('Video button listener added');
+                } else {
+                    console.error('Video button not found');
+                }
+                
+                if (this.toggleMicBtn) {
+                    this.toggleMicBtn.addEventListener('click', () => this.toggleAudio());
+                    debugLog('Mic button listener added');
+                } else {
+                    console.error('Mic button not found');
+                }
+                
+                if (this.toggleScreenBtn) {
+                    this.toggleScreenBtn.addEventListener('click', () => this.toggleScreen());
+                    debugLog('Screen button listener added');
+                } else {
+                    console.error('Screen button not found');
+                }
+                
+                if (this.raiseHandBtn) {
+                    this.raiseHandBtn.addEventListener('click', () => this.toggleRaiseHand());
+                    debugLog('Raise hand button listener added');
+                } else {
+                    console.error('Raise hand button not found');
+                }
+                
+                if (this.endCallBtn) {
+                    this.endCallBtn.addEventListener('click', () => this.showEndCallModal());
+                    debugLog('End call button listener added');
+                } else {
+                    console.error('End call button not found');
+                }
+
+                if (this.startConsultationBtn) {
+                    this.startConsultationBtn.addEventListener('click', () => this.startConsultation());
+                    debugLog('Start consultation button listener added');
+                }
+
+                if (this.rejoinConsultationBtn) {
+                    this.rejoinConsultationBtn.addEventListener('click', () => this.initializeJitsi());
+                }
+
+                if (this.completeConsultationBtn) {
+                    this.completeConsultationBtn.addEventListener('click', () => this.completeConsultation());
+                }
+                
+                // Chat controls
+                if (this.sendMessageBtn) {
+                    this.sendMessageBtn.addEventListener('click', () => this.sendMessage());
+                    debugLog('Send message button listener added');
+                }
+                if (this.chatInput) {
+                    this.chatInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') this.sendMessage();
+                    });
+                    debugLog('Chat input listener added');
+                }
+                
+                // Panel toggle buttons
+                if (this.chatToggleBtn) {
+                    this.chatToggleBtn.addEventListener('click', () => this.showChatPanel());
+                    debugLog('Chat toggle button listener added');
+                }
+                if (this.participantsToggleBtn) {
+                    this.participantsToggleBtn.addEventListener('click', () => this.showParticipantsPanel());
+                    debugLog('Participants toggle button listener added');
+                }
+                
+                // Doctor panel tabs (only for doctors)
+                if (this.userRole === 'doctor') {
+                    this.initializeDoctorPanel();
+                    
+                    // Add custom task button event listener
+                    const addCustomTaskBtn = document.getElementById('addCustomTaskBtn');
+                    if (addCustomTaskBtn) {
+                        addCustomTaskBtn.addEventListener('click', () => {
+                            addCustomTask();
+                        });
+                        debugLog('Custom task button listener added');
+                    }
+                }
+                
+                // Modal controls
+                if (this.cancelEndCallBtn) {
+                    this.cancelEndCallBtn.addEventListener('click', () => this.hideEndCallModal());
+                    debugLog('Cancel end call button listener added');
+                }
+                if (this.confirmEndCallBtn) {
+                    this.confirmEndCallBtn.addEventListener('click', () => this.endCall());
+                    debugLog('Confirm end call button listener added');
+                }
+                
+                // Chat and Participants close buttons
+                const closeChatBtn = document.getElementById('closeChat');
+                if (closeChatBtn) {
+                    closeChatBtn.addEventListener('click', () => this.hideChatPanel());
+                    debugLog('Close chat button listener added');
+                }
+                
+                const closeParticipantsBtn = document.getElementById('closeParticipants');
+                if (closeParticipantsBtn) {
+                    closeParticipantsBtn.addEventListener('click', () => this.hideParticipantsPanel());
+                    debugLog('Close participants button listener added');
+                }
+                
+                debugLog('Event listeners initialized successfully');
+            }
+            
+            startTimer() {
+                debugLog('Starting timer...');
+                this.startTime = Date.now();
+                
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                }
+                
+                this.timerInterval = setInterval(() => {
+                    const elapsed = Date.now() - this.startTime;
+                    const minutes = Math.floor(elapsed / 60000);
+                    const seconds = Math.floor((elapsed % 60000) / 1000);
+                    
+                    const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    
+                    if (this.callTimer) {
+                        this.callTimer.textContent = formattedTime;
+                    } else {
+                        console.error('Timer element not found');
+                    }
+                }, 1000);
+                
+                debugLog('Timer started successfully');
+            }
+            
+            stopTimer() {
+                debugLog('Stopping timer...');
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                    debugLog('Timer stopped');
+                }
+            }
+
+            initializeRoomFlow() {
+                if (this.userRole === 'patient' && !this.consultationStarted) {
+                    this.showPatientWaitingRoom();
+                    this.checkConsultationStatus();
+                    this.waitingPollInterval = setInterval(() => this.checkConsultationStatus(), 4000);
+                    return;
+                }
+
+                if (this.userRole === 'doctor' && !this.consultationStarted) {
+                    if (this.canStartVideo && this.doctorStartRoom) {
+                        this.showDoctorStartRoom();
+                    } else {
+                        this.showPatientWaitingRoom();
+                        this.checkConsultationStatus();
+                        this.waitingPollInterval = setInterval(() => this.checkConsultationStatus(), 4000);
+                    }
+                    return;
+                }
+
+                this.initializeJitsi();
+            }
+
+            showPatientWaitingRoom() {
+                this.hideStateScreens();
+                if (this.waitingRoom) this.waitingRoom.style.display = 'flex';
+                if (this.doctorStartRoom) this.doctorStartRoom.style.display = 'none';
+                if (this.meetingArea) this.meetingArea.style.display = 'none';
+                this.updateConnectionStatus(this.userRole === 'doctor' ? 'Waiting for start time' : 'Waiting for doctor');
+                this.addSystemMessage('Waiting for consultation to start.');
+            }
+
+            showDoctorStartRoom() {
+                this.hideStateScreens();
+                if (this.waitingRoom) this.waitingRoom.style.display = 'none';
+                if (this.doctorStartRoom) this.doctorStartRoom.style.display = 'flex';
+                if (this.meetingArea) this.meetingArea.style.display = 'none';
+                this.updateConnectionStatus('Ready to start');
+            }
+
+            showMeetingArea() {
+                this.hideStateScreens();
+                if (this.waitingRoom) this.waitingRoom.style.display = 'none';
+                if (this.doctorStartRoom) this.doctorStartRoom.style.display = 'none';
+                if (this.meetingArea) this.meetingArea.style.display = 'flex';
+            }
+
+            showDoctorDisconnectedOverlay(message) {
+                if (!this.doctorDisconnectedOverlay) return;
+                const text = this.doctorDisconnectedOverlay.querySelector('span');
+                if (text) {
+                    text.textContent = message || 'Doctor disconnected. Please wait for the doctor to rejoin.';
+                }
+                this.doctorDisconnectedOverlay.style.display = 'flex';
+            }
+
+            hideDoctorDisconnectedOverlay() {
+                if (this.doctorDisconnectedOverlay) {
+                    this.doctorDisconnectedOverlay.style.display = 'none';
+                }
+            }
+
+            hideStateScreens() {
+                [this.rejoinScreen, this.expiredScreen, this.completedScreen].forEach(screen => {
+                    if (screen) screen.style.display = 'none';
+                });
+            }
+
+            showExpiredScreen(message) {
+                this.disposeJitsi();
+                if (this.waitingPollInterval) clearInterval(this.waitingPollInterval);
+                if (this.statusInterval) clearInterval(this.statusInterval);
+                if (this.waitingRoom) this.waitingRoom.style.display = 'none';
+                if (this.doctorStartRoom) this.doctorStartRoom.style.display = 'none';
+                if (this.meetingArea) this.meetingArea.style.display = 'none';
+                if (this.expiredScreen) this.expiredScreen.style.display = 'flex';
+                this.addSystemMessage(message || 'Consultation window has expired.');
+            }
+
+            showCompletedScreen(message) {
+                this.disposeJitsi();
+                if (this.waitingPollInterval) clearInterval(this.waitingPollInterval);
+                if (this.statusInterval) clearInterval(this.statusInterval);
+                if (this.waitingRoom) this.waitingRoom.style.display = 'none';
+                if (this.doctorStartRoom) this.doctorStartRoom.style.display = 'none';
+                if (this.meetingArea) this.meetingArea.style.display = 'none';
+                if (this.completedMessage) this.completedMessage.textContent = message || 'This consultation has been completed.';
+                if (this.completedScreen) this.completedScreen.style.display = 'flex';
+                this.addSystemMessage(message || 'Consultation completed.');
+            }
+
+            showJoinLimitReached(message) {
+                this.disposeJitsi();
+                if (this.rejoinMessage) this.rejoinMessage.textContent = message || 'You have reached the maximum rejoin limit.';
+                if (this.rejoinConsultationBtn) this.rejoinConsultationBtn.style.display = 'none';
+                if (this.remainingAttemptsEl) this.remainingAttemptsEl.textContent = '0';
+                if (this.meetingArea) this.meetingArea.style.display = 'none';
+                if (this.rejoinScreen) this.rejoinScreen.style.display = 'flex';
+            }
+
+            showRejoinScreen(message) {
+                this.disposeJitsi();
+                if (this.meetingArea) this.meetingArea.style.display = 'none';
+                if (this.waitingRoom) this.waitingRoom.style.display = 'none';
+                if (this.doctorStartRoom) this.doctorStartRoom.style.display = 'none';
+                if (this.remainingAttemptsEl) this.remainingAttemptsEl.textContent = this.remainingAttempts;
+                if (this.rejoinMessage) {
+                    this.rejoinMessage.textContent = message || (
+                        this.userRole === 'doctor'
+                            ? 'You can rejoin the consultation if you still have attempts remaining.'
+                            : 'You can rejoin the consultation if you still have attempts remaining.'
+                    );
+                }
+                if (this.rejoinConsultationBtn) {
+                    this.rejoinConsultationBtn.style.display = this.remainingAttempts > 0 ? 'inline-flex' : 'none';
+                }
+                if (this.rejoinScreen) this.rejoinScreen.style.display = 'flex';
+            }
+
+            async checkConsultationStatus() {
+                if (this.hasJoinedMeeting || this.jitsiApi) return;
+
+                try {
+                    const response = await fetch(this.statusUrl, {
+                        headers: {
+                            'X-CSRFToken': this.getCookie('csrftoken')
+                        }
+                    });
+                    if (!response.ok) return;
+                    const data = await response.json();
+                    if (!data.success) return;
+
+                    if (data.expired) {
+                        this.showExpiredScreen(data.message);
+                        return;
+                    }
+                    if (data.completed) {
+                        this.showCompletedScreen(data.message);
+                        return;
+                    }
+                    if (data.doctor_left && this.userRole === 'patient') {
+                        this.showDoctorDisconnectedOverlay(data.message);
+                        this.addSystemMessage(data.message || 'Doctor disconnected. Please wait for the doctor to rejoin.');
+                    } else if (!data.doctor_left) {
+                        this.hideDoctorDisconnectedOverlay();
+                    }
+
+                    this.canStartVideo = data.can_start_video === true;
+                    if (data.started === true || data.video_ready === true) {
+                        this.consultationStarted = true;
+                        this.initializeJitsi();
+                    } else if (this.userRole === 'doctor' && this.canStartVideo && this.doctorStartRoom) {
+                        this.showDoctorStartRoom();
+                    }
+                } catch (error) {
+                    console.error('Failed to check consultation status:', error);
+                }
+            }
+
+            async startConsultation() {
+                if (this.hasJoinedMeeting || this.jitsiApi) return;
+
+                const button = this.startConsultationBtn;
+                if (button) {
+                    button.disabled = true;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+                }
+
+                try {
+                    const response = await fetch(this.startUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({})
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok || !data.success) {
+                        throw new Error(data.error || data.message || 'Unable to start consultation');
+                    }
+
+                    this.consultationStarted = true;
+                    this.addSystemMessage('Consultation started. Opening video room...');
+                    this.initializeJitsi();
+                } catch (error) {
+                    console.error('Failed to start consultation:', error);
+                    this.addSystemMessage('Failed to start consultation: ' + error.message);
+                    if (button) {
+                        button.disabled = false;
+                        button.innerHTML = '<i class="fas fa-play"></i> Start Consultation';
+                    }
+                }
+            }
+            
+            async registerJoinAttempt() {
+                const response = await fetch(this.registerJoinUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+
+                if (!response.ok || !data.success || !data.allowed) {
+                    if (data.expired) this.showExpiredScreen(data.message);
+                    else if (data.completed) this.showCompletedScreen(data.message);
+                    else this.showJoinLimitReached(data.message);
+                    return false;
+                }
+
+                this.remainingAttempts = data.remaining_attempts;
+                if (this.remainingAttemptsEl) this.remainingAttemptsEl.textContent = this.remainingAttempts;
+                if (data.jitsi_room_name) this.roomId = data.jitsi_room_name;
+                return true;
+            }
+
+            async initializeJitsi() {
+                try {
+                    if (this.hasJoinedMeeting || this.jitsiApi || this.isJoining) {
+                        return;
+                    }
+                    this.isJoining = true;
+                    if (!this.jitsiContainer) {
+                        throw new Error('Jitsi meeting container was not found');
+                    }
+                    if (!window.JitsiMeetExternalAPI) {
+                        throw new Error('Jitsi Meet API failed to load');
+                    }
+
+                    const canJoin = await this.registerJoinAttempt();
+                    if (!canJoin) {
+                        this.isJoining = false;
+                        return;
+                    }
+
+                    const options = {
+                        roomName: this.roomId,
+                        parentNode: this.jitsiContainer,
+                        width: '100%',
+                        height: '100%',
+                        userInfo: {
+                            displayName: this.userName
+                        },
+                        configOverwrite: {
+                            prejoinPageEnabled: false,
+                            prejoinConfig: {
+                                enabled: false
+                            },
+                            requireDisplayName: false,
+                            startWithAudioMuted: false,
+                            startWithVideoMuted: false,
+                            disableDeepLinking: true
+                        },
+                        interfaceConfigOverwrite: {
+                            SHOW_JITSI_WATERMARK: false,
+                            SHOW_WATERMARK_FOR_GUESTS: false,
+                            MOBILE_APP_PROMO: false
+                        }
+                    };
+
+                    this.hasJoinedMeeting = true;
+                    if (this.waitingPollInterval) {
+                        clearInterval(this.waitingPollInterval);
+                        this.waitingPollInterval = null;
+                    }
+                    if (this.statusInterval) {
+                        clearInterval(this.statusInterval);
+                        this.statusInterval = null;
+                    }
+                    this.showMeetingArea();
+                    this.jitsiApi = new JitsiMeetExternalAPI(this.jitsiDomain, options);
+                    this.bindJitsiEvents();
+                    this.updateMicButton();
+                    this.updateVideoButton();
+                    this.updateScreenButton();
+
+                    this.setConnectionStatus(true);
+                    this.setRemoteUserConnected(false);
+                    this.updateConnectionStatus('Connected');
+                    this.addSystemMessage('You have joined the consultation room. Waiting for the other participant...');
+                    this.startTimer();
+
+                    setTimeout(() => {
+                        this.updateParticipantStatus();
+                        this.refreshParticipantStatus();
+                    }, 500);
+                    this.statusInterval = setInterval(() => this.refreshParticipantStatus(), 5000);
+                    this.isJoining = false;
+                } catch (error) {
+                    this.isJoining = false;
+                    console.error('Error initializing consultation room:', error);
+                    this.updateConnectionStatus('Failed to connect');
+                    this.addSystemMessage('Failed to initialize Jitsi consultation room. Please refresh and try again.');
+                }
+            }
+
+            bindJitsiEvents() {
+                if (!this.jitsiApi) return;
+
+                this.jitsiApi.addEventListener('videoConferenceJoined', () => {
+                    this.setConnectionStatus(true);
+                    this.updateSelfSpeakingIndicator(false);
+                    this.addSystemMessage('Jitsi video consultation is ready.');
+                });
+
+                this.jitsiApi.addEventListener('participantJoined', () => {
+                    this.setRemoteUserConnected(true);
+                    this.updateConnectionStatus('In progress');
+                    this.addSystemMessage('The other participant joined the consultation.');
+                });
+
+                this.jitsiApi.addEventListener('participantLeft', () => {
+                    this.setRemoteUserConnected(false);
+                    this.addSystemMessage('The other participant left the consultation.');
+                });
+
+                this.jitsiApi.addEventListener('audioMuteStatusChanged', ({ muted }) => {
+                    this.isAudioOn = !muted;
+                    this.updateMicButton();
+                    this.updateSelfSpeakingIndicator(!muted);
+                });
+
+                this.jitsiApi.addEventListener('videoMuteStatusChanged', ({ muted }) => {
+                    this.isVideoOn = !muted;
+                    this.updateVideoButton();
+                });
+
+                this.jitsiApi.addEventListener('screenSharingStatusChanged', ({ on }) => {
+                    this.isScreenSharing = Boolean(on);
+                    this.updateScreenButton();
+                });
+
+                this.jitsiApi.addEventListener('readyToClose', async () => {
+                    await this.handleParticipantLeft();
+                });
+            }
+
+            async refreshParticipantStatus() {
+                try {
+                    const response = await fetch(this.statusUrl, {
+                        headers: {
+                            'X-CSRFToken': this.getCookie('csrftoken')
+                        }
+                    });
+                    if (!response.ok) return;
+                    const data = await response.json();
+                    if (!data.success) return;
+
+                    if (data.completed) {
+                        this.showCompletedScreen(data.message);
+                        return;
+                    }
+                    if (data.expired) {
+                        this.showExpiredScreen(data.message);
+                        return;
+                    }
+                    if (data.doctor_left && this.userRole === 'patient') {
+                        this.showDoctorDisconnectedOverlay(data.message);
+                        this.addSystemMessage(data.message || 'Doctor disconnected. Please wait for the doctor to rejoin.');
+                    } else if (!data.doctor_left) {
+                        this.hideDoctorDisconnectedOverlay();
+                    }
+
+                    const remoteJoined = this.userRole === 'doctor' ? data.patient_joined : data.doctor_joined;
+                    this.setRemoteUserConnected(Boolean(remoteJoined));
+                    if (data.consultation_status === 'in_progress') {
+                        this.updateConnectionStatus('In progress');
+                    } else if (remoteJoined) {
+                        this.updateConnectionStatus('Waiting');
+                    }
+                } catch (error) {
+                    console.warn('Unable to refresh participant status:', error);
+                }
+            }
+            
+            updateSelfSpeakingIndicator(isSpeaking) {
+                const selfSpeaking = document.getElementById('selfSpeaking');
+                const selfMicIcon = document.getElementById('selfMicIcon');
+                if (selfSpeaking) {
+                    selfSpeaking.classList.toggle('active', Boolean(isSpeaking));
+                }
+                if (selfMicIcon) {
+                    selfMicIcon.className = isSpeaking ? 'fas fa-microphone' : 'fas fa-microphone-slash';
+                }
+            }
+
+            updateRemoteSpeakingIndicator(isSpeaking) {
+                const remoteSpeaking = document.getElementById('remoteSpeaking');
+                const remoteMicIcon = document.getElementById('remoteMicIcon');
+                if (remoteSpeaking) {
+                    remoteSpeaking.classList.toggle('active', Boolean(isSpeaking));
+                }
+                if (remoteMicIcon) {
+                    remoteMicIcon.className = isSpeaking ? 'fas fa-microphone' : 'fas fa-microphone-slash';
+                }
+            }
+
+            toggleVideo() {
+                if (!this.jitsiApi) return;
+                this.jitsiApi.executeCommand('toggleVideo');
+            }
+
+            toggleAudio() {
+                if (!this.jitsiApi) return;
+                this.jitsiApi.executeCommand('toggleAudio');
+            }
+
+            toggleScreen() {
+                if (!this.jitsiApi) return;
+                try {
+                    this.jitsiApi.executeCommand('toggleShareScreen');
+                } catch (error) {
+                    console.warn('Jitsi screen share command failed:', error);
+                    this.addSystemMessage('Use the Jitsi toolbar if screen sharing does not start.');
+                }
+            }
+
+            updateVideoButton() {
+                if (!this.toggleVideoBtn) return;
+                const icon = this.toggleVideoBtn.querySelector('i');
+                this.toggleVideoBtn.classList.toggle('active', this.isVideoOn);
+                if (icon) {
+                    icon.className = this.isVideoOn ? 'fas fa-video' : 'fas fa-video-slash';
+                }
+            }
+
+            updateMicButton() {
+                if (!this.toggleMicBtn) return;
+                const icon = this.toggleMicBtn.querySelector('i');
+                this.toggleMicBtn.classList.toggle('active', this.isAudioOn);
+                if (icon) {
+                    icon.className = this.isAudioOn ? 'fas fa-microphone' : 'fas fa-microphone-slash';
+                }
+            }
+
+            updateScreenButton() {
+                if (!this.toggleScreenBtn) return;
+                this.toggleScreenBtn.classList.toggle('active', this.isScreenSharing);
+            }
+            
+            toggleRaiseHand() {
+                debugLog('Toggling raise hand...');
+                const isRaised = this.raiseHandBtn.classList.contains('active');
+                if (this.jitsiApi) {
+                    try {
+                        this.jitsiApi.executeCommand('toggleRaiseHand');
+                    } catch (error) {
+                        console.warn('Jitsi raise hand command failed:', error);
+                    }
+                }
+                
+                if (isRaised) {
+                    debugLog('Lowering hand...');
+                    this.raiseHandBtn.classList.remove('active');
+                    this.addSystemMessage('Hand lowered');
+                    debugLog('Hand lowered successfully');
+                } else {
+                    debugLog('Raising hand...');
+                    this.raiseHandBtn.classList.add('active');
+                    this.addSystemMessage('Hand raised');
+                    debugLog('Hand raised successfully');
+                }
+            }
+            
+            startTimer() {
+                this.startTime = Date.now();
+                this.timerInterval = setInterval(() => {
+                    const elapsed = Date.now() - this.startTime;
+                    const minutes = Math.floor(elapsed / 60000);
+                    const seconds = Math.floor((elapsed % 60000) / 1000);
+                    
+                    const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    
+                    if (this.callTimer) {
+                        this.callTimer.textContent = display;
+                    }
+                }, 1000);
+            }
+            
+            stopTimer() {
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                }
+            }
+            
+            sendMessage() {
+                debugLog('Sending message...');
+                const message = this.chatInput.value.trim();
+                if (message && this.chatMessages) {
+                    debugLog('Message:', message);
+                    this.addChatMessage(this.userName, message, new Date().toISOString());
+                    this.chatInput.value = '';
+                    debugLog('Message sent successfully');
+                } else {
+                    debugLog('No message or chat messages container not found');
+                }
+            }
+            
+            addChatMessage(sender, message, timestamp) {
+                if (!this.chatMessages) return;
+                
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'chat-message';
+                messageDiv.innerHTML = `
+                    <div class="message-info">
+                        <span class="sender">${sender}:</span>
+                        <span class="timestamp">${new Date(timestamp).toLocaleTimeString()}</span>
+                    </div>
+                    <div class="message-text">${message}</div>
+                `;
+                this.chatMessages.appendChild(messageDiv);
+                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+            }
+            
+            showChatPanel() {
+                const chatPanel = document.getElementById('chatPanel');
+                const participantsPanel = document.getElementById('participantsPanel');
+                
+                if (chatPanel) {
+                    chatPanel.classList.add('show');
+                    chatPanel.style.display = 'flex';
+                }
+                
+                if (participantsPanel) {
+                    participantsPanel.classList.remove('show');
+                    participantsPanel.style.display = 'none';
+                }
+                
+                this.addSystemMessage('Chat panel opened');
+            }
+            
+            hideChatPanel() {
+                const chatPanel = document.getElementById('chatPanel');
+                if (chatPanel) {
+                    chatPanel.classList.remove('show');
+                    chatPanel.style.display = 'none';
+                }
+                this.addSystemMessage('Chat panel closed');
+            }
+            
+            showParticipantsPanel() {
+                const participantsPanel = document.getElementById('participantsPanel');
+                const chatPanel = document.getElementById('chatPanel');
+                
+                if (participantsPanel) {
+                    participantsPanel.classList.add('show');
+                    participantsPanel.style.display = 'flex';
+                }
+                
+                if (chatPanel) {
+                    chatPanel.classList.remove('show');
+                    chatPanel.style.display = 'none';
+                }
+            }
+            
+            showChatPanel() {
+                const chatPanel = document.getElementById('chatPanel');
+                const participantsPanel = document.getElementById('participantsPanel');
+                
+                if (chatPanel) {
+                    chatPanel.classList.add('show');
+                    chatPanel.style.display = 'flex';
+                }
+                
+                if (participantsPanel) {
+                    participantsPanel.classList.remove('show');
+                    participantsPanel.style.display = 'none';
+                }
+                
+                this.addSystemMessage('Chat panel opened');
+            }
+            
+            hideChatPanel() {
+                const chatPanel = document.getElementById('chatPanel');
+                if (chatPanel) {
+                    chatPanel.classList.remove('show');
+                    chatPanel.style.display = 'none';
+                }
+                this.addSystemMessage('Chat panel closed');
+            }
+            
+            showParticipantsPanel() {
+                const participantsPanel = document.getElementById('participantsPanel');
+                const chatPanel = document.getElementById('chatPanel');
+                
+                if (participantsPanel) {
+                    participantsPanel.classList.add('show');
+                    participantsPanel.style.display = 'flex';
+                }
+                
+                if (chatPanel) {
+                    chatPanel.classList.remove('show');
+                    chatPanel.style.display = 'none';
+                }
+                
+                this.addSystemMessage('Participants panel opened');
+                this.updateParticipantStatus();
+            }
+            
+            updateParticipantStatus() {
+                // Update remote participant status
+                if (this.remoteParticipant) {
+                    if (this.remoteUserConnected) {
+                        this.remoteParticipant.classList.remove('disconnected', 'connecting');
+                        this.remoteParticipant.classList.add('connected');
+                        if (this.remoteStatus) {
+                            this.remoteStatus.textContent = 'Connected';
+                        }
+                        // Update status dot to green
+                        const remoteStatusDot = this.remoteParticipant.querySelector('.status-dot');
+                        if (remoteStatusDot) {
+                            remoteStatusDot.classList.remove('offline');
+                            remoteStatusDot.classList.add('online');
+                        }
+                    } else {
+                        this.remoteParticipant.classList.remove('connected', 'connecting');
+                        this.remoteParticipant.classList.add('disconnected');
+                        if (this.remoteStatus) {
+                            this.remoteStatus.textContent = 'Not Connected';
+                        }
+                        // Update status dot to red
+                        const remoteStatusDot = this.remoteParticipant.querySelector('.status-dot');
+                        if (remoteStatusDot) {
+                            remoteStatusDot.classList.remove('online');
+                            remoteStatusDot.classList.add('offline');
+                        }
+                    }
+                }
+                
+                // Update self participant status
+                if (this.selfParticipant) {
+                    if (this.isConnected) {
+                        this.selfParticipant.classList.remove('disconnected', 'connecting');
+                        this.selfParticipant.classList.add('connected');
+                        if (this.selfStatus) {
+                            this.selfStatus.textContent = 'Connected';
+                        }
+                        // Update status dot to green
+                        const selfStatusDot = this.selfParticipant.querySelector('.status-dot');
+                        if (selfStatusDot) {
+                            selfStatusDot.classList.remove('offline');
+                            selfStatusDot.classList.add('online');
+                        }
+                    } else {
+                        this.selfParticipant.classList.remove('connected', 'disconnected');
+                        this.selfParticipant.classList.add('connecting');
+                        if (this.selfStatus) {
+                            this.selfStatus.textContent = 'Not Connected';
+                        }
+                        // Update status dot to red
+                        const selfStatusDot = this.selfParticipant.querySelector('.status-dot');
+                        if (selfStatusDot) {
+                            selfStatusDot.classList.remove('online');
+                            selfStatusDot.classList.add('offline');
+                        }
+                    }
+                }
+            }
+            
+            setRemoteUserConnected(connected) {
+                this.remoteUserConnected = connected;
+                this.updateParticipantStatus();
+            }
+            
+            setConnectionStatus(connected) {
+                this.isConnected = connected;
+                this.updateParticipantStatus();
+            }
+            
+            hideParticipantsPanel() {
+                const participantsPanel = document.getElementById('participantsPanel');
+                if (participantsPanel) {
+                    participantsPanel.classList.remove('show');
+                    participantsPanel.style.display = 'none';
+                }
+                this.addSystemMessage('Participants panel closed');
+            }
+            
+            addSystemMessage(message) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'system-message';
+                messageDiv.innerHTML = `<strong>System:</strong> ${message}`;
+                this.chatMessages.appendChild(messageDiv);
+                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+            }
+            
+            showEndCallModal() {
+                debugLog('Showing end call modal...');
+                if (this.endCallModal) {
+                    this.endCallModal.style.display = 'flex';
+                    debugLog('End call modal shown');
+                } else {
+                    console.error('End call modal not found');
+                }
+            }
+            
+            hideEndCallModal() {
+                debugLog('Hiding end call modal...');
+                if (this.endCallModal) {
+                    this.endCallModal.style.display = 'none';
+                    debugLog('End call modal hidden');
+                } else {
+                    console.error('End call modal not found');
+                }
+            }
+            
+            async endCall() {
+                debugLog('Ending call...');
+
+                if (this.jitsiApi) {
+                    try {
+                        this.jitsiApi.executeCommand('hangup');
+                    } catch (error) {
+                        console.warn('Unable to hang up Jitsi call before redirect:', error);
+                    }
+                }
+
+                await this.handleParticipantLeft();
+                this.hideEndCallModal();
+            }
+
+            async handleParticipantLeft() {
+                try {
+                    await fetch(this.participantLeftUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ role: this.userRole })
+                    });
+                } catch (error) {
+                    console.error('Participant-left request failed:', error);
+                }
+
+                this.hasJoinedMeeting = false;
+                this.isJoining = false;
+                this.showRejoinScreen();
+                if (!this.statusInterval) {
+                    this.statusInterval = setInterval(() => this.refreshParticipantStatus(), 5000);
+                }
+            }
+
+            async completeConsultation() {
+                if (this.userRole !== 'doctor' && this.userRole !== 'admin') return;
+                try {
+                    await this.saveAllDoctorData();
+                } catch (error) {
+                    console.error('Auto-save before completion failed:', error);
+                }
+
+                try {
+                    const response = await fetch(`/consultation/{{ appointment.id }}/complete/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({})
+                    });
+                    const data = await response.json();
+                    if (!response.ok || data.success === false) {
+                        throw new Error(data.error || 'Unable to complete consultation');
+                    }
+                    this.showCompletedScreen('Consultation completed successfully.');
+                } catch (error) {
+                    console.error('Complete consultation failed:', error);
+                    this.addSystemMessage('Failed to complete consultation: ' + error.message);
+                }
+            }
+            
+            updateConnectionStatus(status) {
+                // Connection status overlay was removed, so just log the status
+                debugLog('Connection status:', status);
+            }
+            
+            saveNotes() {
+                if (!this.consultationNotes) {
+                    this.addSystemMessage('Notes area not available');
+                    return;
+                }
+                
+                const notes = this.consultationNotes.value;
+                
+                // Save notes via AJAX
+                fetch(`/consultation/{{ appointment.id }}/save-notes/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ notes: notes })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        this.addSystemMessage('Notes saved successfully');
+                    } else {
+                        this.addSystemMessage('Failed to save notes: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving notes:', error);
+                    this.addSystemMessage('Failed to save notes. Please try again.');
+                });
+            }
+            
+            initializeDoctorPanel() {
+                debugLog('Initializing doctor panel...');
+                this.initializeDoctorDrawer();
+                
+                // Wait for DOM to be ready
+                setTimeout(() => {
+                    // Doctor tab functionality
+                    const doctorTabBtns = document.querySelectorAll('.doctor-tab-btn');
+                    const doctorTabContents = document.querySelectorAll('.doctor-tab-content');
+                    
+                    debugLog('Found tab buttons:', doctorTabBtns.length);
+                    debugLog('Found tab contents:', doctorTabContents.length);
+                    
+                    if (doctorTabBtns.length === 0) {
+                        console.error('No doctor tab buttons found!');
+                        return;
+                    }
+                    
+                    doctorTabBtns.forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            debugLog('Tab clicked:', btn.dataset.tab);
+                            const targetTab = btn.dataset.tab;
+                            
+                            // Remove active class from all tabs and contents
+                            doctorTabBtns.forEach(b => b.classList.remove('active'));
+                            doctorTabContents.forEach(content => content.classList.remove('active'));
+                            
+                            // Add active class to clicked tab and corresponding content
+                            btn.classList.add('active');
+                            const targetContent = document.getElementById(`${targetTab}-tab`);
+                            if (targetContent) {
+                                targetContent.classList.add('active');
+                                debugLog('Activated tab:', targetTab);
+                            } else {
+                                console.error('Tab content not found:', targetTab);
+                            }
+                        });
+                    });
+                    
+                    // Task category functionality
+                    const taskCategoryBtns = document.querySelectorAll('.task-category-btn');
+                    taskCategoryBtns.forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            const category = btn.dataset.category;
+                            debugLog('Task category clicked:', category);
+                            
+                            // Remove active class from all category buttons
+                            taskCategoryBtns.forEach(b => b.classList.remove('active'));
+                            btn.classList.add('active');
+                            
+                            // Load tasks for selected category
+                            this.loadTaskTemplates(category);
+                        });
+                    });
+                    
+                    // Save all data button
+                    const saveAllBtn = document.getElementById('saveAllData');
+                    if (saveAllBtn) {
+                        saveAllBtn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            debugLog('Save button clicked');
+                            this.saveAllDoctorData();
+                        });
+                    } else {
+                        console.error('Save button not found');
+                    }
+                    
+                    // Load initial task templates
+                    this.loadTaskTemplates('all');
+                    
+                    debugLog('Doctor panel initialized successfully');
+                }, 100); // Small delay to ensure DOM is ready
+            }
+
+            initializeDoctorDrawer() {
+                const toggle = document.getElementById('doctorPanelToggle');
+                const drawer = document.getElementById('doctorPanelDrawer');
+                const close = document.getElementById('closeDoctorPanel');
+                if (!drawer) return;
+
+                const openDrawer = () => {
+                    drawer.classList.add('open');
+                    drawer.setAttribute('aria-hidden', 'false');
+                };
+                const closeDrawer = () => {
+                    drawer.classList.remove('open');
+                    drawer.setAttribute('aria-hidden', 'true');
+                };
+
+                toggle?.addEventListener('click', () => {
+                    if (drawer.classList.contains('open')) {
+                        closeDrawer();
+                    } else {
+                        openDrawer();
+                    }
+                });
+                close?.addEventListener('click', closeDrawer);
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') {
+                        closeDrawer();
+                    }
+                });
+            }
+            
+            loadTaskTemplates(category) {
+                const taskTemplates = document.getElementById('taskTemplates');
+                if (!taskTemplates) return;
+                
+                // Sample task templates based on category
+                const templates = {
+                    all: [
+                        { title: 'Morning Exercise', category: 'physical', description: '30 minutes of light exercise' },
+                        { title: 'Healthy Breakfast', category: 'diet', description: 'Eat a balanced breakfast' },
+                        { title: 'Take Medication', category: 'medical', description: 'Take prescribed medications on time' },
+                        { title: 'Meditation', category: 'mental', description: '15 minutes of mindfulness meditation' },
+                        { title: 'Sleep Schedule', category: 'lifestyle', description: 'Maintain regular sleep hours' }
+                    ],
+                    physical: [
+                        { title: 'Morning Walk', category: 'physical', description: '20 minutes brisk walk' },
+                        { title: 'Stretching', category: 'physical', description: '10 minutes full body stretching' },
+                        { title: 'Yoga', category: 'physical', description: '30 minutes gentle yoga' }
+                    ],
+                    diet: [
+                        { title: 'Drink Water', category: 'diet', description: '8 glasses of water daily' },
+                        { title: 'Fruits & Vegetables', category: 'diet', description: '5 servings of fruits/vegetables' },
+                        { title: 'Limit Sugar', category: 'diet', description: 'Avoid sugary drinks and snacks' }
+                    ],
+                    medical: [
+                        { title: 'Blood Pressure Check', category: 'medical', description: 'Check blood pressure twice daily' },
+                        { title: 'Temperature Check', category: 'medical', description: 'Monitor body temperature' },
+                        { title: 'Symptom Log', category: 'medical', description: 'Log any new symptoms' }
+                    ],
+                    mental: [
+                        { title: 'Journaling', category: 'mental', description: 'Write thoughts for 10 minutes' },
+                        { title: 'Deep Breathing', category: 'mental', description: '5 minutes deep breathing exercises' },
+                        { title: 'Gratitude Practice', category: 'mental', description: 'List 3 things you\'re grateful for' }
+                    ],
+                    lifestyle: [
+                        { title: 'Digital Detox', category: 'lifestyle', description: '1 hour screen-free time' },
+                        { title: 'Social Connection', category: 'lifestyle', description: 'Connect with friends/family' },
+                        { title: 'Hobby Time', category: 'lifestyle', description: '30 minutes of enjoyable activity' }
+                    ]
+                };
+                
+                const selectedTemplates = templates[category] || templates.all;
+                
+                taskTemplates.innerHTML = selectedTemplates.map((task, index) => `
+                    <div class="task-template-item" data-task="${encodeURIComponent(JSON.stringify(task))}">
+                        <div class="task-template-content">
+                            <h6>${task.title}</h6>
+                            <p>${task.description}</p>
+                            <span class="task-category-badge">${task.category}</span>
+                        </div>
+                        <button onclick="addTaskFromTemplate(${index})" class="btn-add-task-small">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                `).join('');
+            }
+            
+            async saveAllDoctorData() {
+                // Show loading notification
+                this.showNotification('Saving consultation data...', 'info');
+                
+                try {
+                    const selectedTasks = this.getSelectedTasks();
+                    const dailyTasksJson = document.getElementById('dailyTasksJson');
+                    if (dailyTasksJson) {
+                        dailyTasksJson.value = JSON.stringify(selectedTasks);
+                    }
+
+                    // Collect data with better error handling
+                    const data = {
+                        appointmentId: parseInt('{{ appointment.id }}'),
+                        patientId: parseInt('{{ appointment.patient.id }}'),
+                        notes: {
+                            symptoms: document.getElementById('patientSymptoms')?.value || '',
+                            assessment: document.getElementById('clinicalAssessment')?.value || '',
+                            treatment: document.getElementById('treatmentPlan')?.value || '',
+                            followUp: document.getElementById('followUpNotes')?.value || ''
+                        },
+                        prescription: {
+                            details: document.getElementById('prescriptionDetails')?.value || '',
+                            instructions: document.getElementById('prescriptionInstructions')?.value || '',
+                            medications: this.getMedicationsList()
+                        },
+                        daily_tasks: selectedTasks,
+                        daily_tasks_json: dailyTasksJson?.value || JSON.stringify(selectedTasks),
+                        tasks: selectedTasks
+                    };
+                    
+                    debugLog('Saving data:', data);
+                    
+                    // Validate data before sending
+                    if (!data.appointmentId || !data.patientId) {
+                        throw new Error('Missing appointment or patient ID');
+                    }
+                    
+                    // Save consultation data to backend
+                    const response = await fetch('/save-consultation-data/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCookie('csrftoken')
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    
+                    debugLog('Response status:', response.status);
+                    
+                    if (!response.ok) {
+                        // Handle HTTP errors
+                        const errorText = await response.text();
+                        console.error('HTTP Error:', response.status, errorText);
+                        this.showNotification(`Server error: ${response.status}`, 'error');
+                        this.addSystemMessage(`Server error: ${response.status}`);
+                        return;
+                    }
+                    
+                    const result = await response.json();
+                    debugLog('Response result:', result);
+                    
+                    if (result.success) {
+                        this.showNotification('Consultation data saved successfully!', 'success');
+                        this.showNotification('Prescription and tasks are now available on patient dashboard.', 'success');
+                        this.addSystemMessage('Consultation data saved successfully!');
+                        this.addSystemMessage('Prescription and tasks are now available on patient dashboard.');
+                        
+                        // Highlight save button to show success
+                        const saveBtn = document.getElementById('saveAllData');
+                        if (saveBtn) {
+                            saveBtn.style.background = 'var(--success-color)';
+                            saveBtn.innerHTML = '<i class="fas fa-check"></i> Saved Successfully';
+                            setTimeout(() => {
+                                saveBtn.style.background = '';
+                                saveBtn.innerHTML = '<i class="fas fa-save"></i> Save All';
+                            }, 3000);
+                        }
+                    } else {
+                        this.showNotification('Failed to save data: ' + (result.message || 'Unknown error'), 'error');
+                        this.addSystemMessage('Failed to save data: ' + (result.message || 'Unknown error'));
+                    }
+
+                    return result;
+                } catch (error) {
+                    console.error('Error saving consultation data:', error);
+                    this.showNotification('Failed to save data: ' + error.message, 'error');
+                    this.addSystemMessage('Failed to save data: ' + error.message);
+                    throw error;
+                }
+            }
+            
+            showNotification(message, type = 'info') {
+                // Create notification element
+                const notification = document.createElement('div');
+                notification.className = `consultation-notification ${type}`;
+                notification.innerHTML = `
+                    <div class="notification-content">
+                        <i class="fas ${this.getNotificationIcon(type)}"></i>
+                        <span>${message}</span>
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="notification-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                
+                // Add to page
+                document.body.appendChild(notification);
+                
+                // Auto remove after 5 seconds
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 5000);
+            }
+            
+            getNotificationIcon(type) {
+                switch(type) {
+                    case 'success': return 'fa-check-circle';
+                    case 'error': return 'fa-exclamation-circle';
+                    case 'warning': return 'fa-exclamation-triangle';
+                    default: return 'fa-info-circle';
+                }
+            }
+            
+            getSelectedTasks() {
+                const tasks = collectSelectedTasksFromDom();
+                debugLog('Final tasks array:', tasks);
+                return tasks;
+            }
+            
+            getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+            
+            getMedicationsList() {
+                const medications = [];
+                const medicationItems = document.querySelectorAll('#medicationsList .medication-item');
+                
+                debugLog('Found medication items:', medicationItems.length);
+                
+                medicationItems.forEach((item, index) => {
+                    const name = item.querySelector('.med-name')?.value?.trim();
+                    const dosage = item.querySelector('.med-dosage')?.value?.trim();
+                    const frequency = item.querySelector('.med-frequency')?.value?.trim();
+                    const duration = item.querySelector('.med-duration')?.value?.trim();
+                    
+                    debugLog(`Medication ${index}:`, { name, dosage, frequency, duration });
+                    
+                    if (name && dosage) {
+                        medications.push({ 
+                            name, 
+                            dosage, 
+                            frequency: frequency || '', 
+                            duration: duration || '' 
+                        });
+                    }
+                });
+                
+                debugLog('Final medications array:', medications);
+                return medications;
+            }
+            
+            cleanup() {
+                debugLog('Cleaning up consultation room...');
+                this.disposeJitsi();
+                this.stopTimer();
+                
+                if (this.statusInterval) {
+                    clearInterval(this.statusInterval);
+                    this.statusInterval = null;
+                }
+                if (this.waitingPollInterval) {
+                    clearInterval(this.waitingPollInterval);
+                    this.waitingPollInterval = null;
+                }
+                
+                debugLog('Cleanup completed');
+            }
+
+            disposeJitsi() {
+                if (this.jitsiApi) {
+                    try {
+                        this.jitsiApi.dispose();
+                    } catch (error) {
+                        console.warn('Jitsi cleanup failed:', error);
+                    }
+                    this.jitsiApi = null;
+                }
+                this.hasJoinedMeeting = false;
+                this.stopTimer();
+            }
+        }
+        
+        // Global functions for prescription and task management
+        function addMedication() {
+            debugLog('Adding medication...');
+            const medicationsList = document.getElementById('medicationsList');
+            if (medicationsList) {
+                const newMedication = document.createElement('div');
+                newMedication.className = 'medication-item';
+                newMedication.innerHTML = `
+                    <input type="text" placeholder="Medication name" class="med-name">
+                    <input type="text" placeholder="Dosage (e.g., 500mg)" class="med-dosage">
+                    <input type="text" placeholder="Frequency (e.g., 2x daily)" class="med-frequency">
+                    <input type="text" placeholder="Duration (e.g., 7 days)" class="med-duration">
+                    <button type="button" class="btn-remove">×</button>
+                `;
+                medicationsList.appendChild(newMedication);
+                debugLog('Medication added successfully');
+                
+                // Add event listener to the new button
+                const removeBtn = newMedication.querySelector('.btn-remove');
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', function() {
+                        removeMedication(this);
+                    });
+                }
+            } else {
+                console.error('Medications list not found');
+            }
+        }
+        
+        function removeMedication(button) {
+            debugLog('Removing medication...');
+            const medicationItem = button.closest('.medication-item');
+            if (medicationItem) {
+                medicationItem.remove();
+                debugLog('Medication removed successfully');
+            } else {
+                console.error('Medication item not found');
+            }
+        }
+
+        function collectSelectedTasksFromDom() {
+            const tasks = [];
+            const selectedTaskItems = document.querySelectorAll('#selectedTasksList .selected-task-item');
+
+            debugLog('Found selected task items:', selectedTaskItems.length);
+
+            selectedTaskItems.forEach((item, index) => {
+                const title = item.querySelector('h6')?.textContent?.trim();
+                const description = item.querySelector('p')?.textContent?.trim();
+                const category = item.querySelector('.task-category-badge')?.textContent?.trim();
+                const durationText = item.querySelector('.task-duration')?.textContent?.trim();
+                const priority = item.querySelector('.task-priority')?.textContent?.trim();
+                const durationDays = parseInt(durationText) || 7;
+
+                debugLog(`Task ${index}:`, { title, description, category, durationDays, priority });
+
+                if (title && description) {
+                    tasks.push({
+                        title,
+                        description,
+                        category: category || 'mental',
+                        duration: durationDays,
+                        duration_days: durationDays,
+                        priority: priority || 'medium',
+                        source: item.dataset.source || 'custom'
+                    });
+                }
+            });
+
+            return tasks;
+        }
+
+        function syncDailyTasksJson() {
+            const dailyTasksJson = document.getElementById('dailyTasksJson');
+            if (dailyTasksJson) {
+                dailyTasksJson.value = JSON.stringify(collectSelectedTasksFromDom());
+            }
+        }
+        
+        function addTaskFromTemplate(index) {
+            debugLog('Adding task from template index:', index);
+            
+            const taskTemplates = document.getElementById('taskTemplates');
+            const templateItems = taskTemplates.querySelectorAll('.task-template-item');
+            const templateItem = templateItems[index];
+            
+            if (templateItem) {
+                const taskData = JSON.parse(decodeURIComponent(templateItem.dataset.task));
+                debugLog('Template task data:', taskData);
+                
+                const selectedTasksList = document.getElementById('selectedTasksList');
+                if (selectedTasksList) {
+                    // Clear "No tasks selected" message if present
+                    const noTasksMessage = selectedTasksList.querySelector('.no-tasks-message');
+                    if (noTasksMessage) {
+                        noTasksMessage.remove();
+                    }
+                    
+                    const taskItem = document.createElement('div');
+                    taskItem.className = 'selected-task-item';
+                    taskItem.dataset.source = 'template';
+                    taskItem.innerHTML = `
+                        <div class="task-info">
+                            <h6>${taskData.title}</h6>
+                            <p>${taskData.description}</p>
+                            <div class="task-meta">
+                                <span class="task-category-badge">${taskData.category}</span>
+                                <span class="task-duration">7 days</span>
+                                <span class="task-priority medium">medium</span>
+                            </div>
+                        </div>
+                        <button onclick="removeSelectedTask(this)" class="btn-remove">&times;</button>
+                    `;
+                    selectedTasksList.appendChild(taskItem);
+                    
+                    debugLog('Template task added successfully');
+                    updateSelectedTasksCount();
+                    syncDailyTasksJson();
+                } else {
+                    console.error('Selected tasks list not found');
+                }
+            } else {
+                console.error('Template item not found at index:', index);
+            }
+        }
+        
+        function removeSelectedTask(button) {
+            debugLog('Removing selected task...');
+            const taskItem = button.closest('.selected-task-item');
+            if (taskItem) {
+                taskItem.remove();
+                debugLog('Selected task removed successfully');
+                updateSelectedTasksCount();
+                
+                // Show "No tasks selected" if list is empty
+                const selectedTasksList = document.getElementById('selectedTasksList');
+                if (selectedTasksList && selectedTasksList.querySelectorAll('.selected-task-item').length === 0) {
+                    selectedTasksList.innerHTML = '<p class="no-tasks-message">No tasks selected</p>';
+                }
+                syncDailyTasksJson();
+            } else {
+                console.error('Selected task item not found');
+            }
+        }
+        
+        function updateSelectedTasksCount() {
+            const selectedTasksList = document.getElementById('selectedTasksList');
+            const count = selectedTasksList.querySelectorAll('.selected-task-item').length;
+            const countSpan = document.getElementById('selectedTasksCount');
+            if (countSpan) {
+                countSpan.textContent = count;
+                debugLog('Updated task count:', count);
+            } else {
+                console.error('Task count span not found');
+            }
+        }
+        
+        function savePrescriptionAndTasks() {
+            // Store consultation ID for debugging
+            const consultationId = "{{ consultation.id }}";
+            
+            // Collect prescription data
+            const medicationsList = document.getElementById('medicationsList');
+            const medications = [];
+            
+            if (medicationsList) {
+                const medicationItems = medicationsList.querySelectorAll('.medication-item');
+                medicationItems.forEach(item => {
+                    const name = item.querySelector('.med-name')?.value || '';
+                    const dosage = item.querySelector('.med-dosage')?.value || '';
+                    const frequency = item.querySelector('.med-frequency')?.value || '';
+                    const duration = item.querySelector('.med-duration')?.value || '';
+                    
+                    if (name && dosage) {
+                        medications.push({
+                            name,
+                            dosage,
+                            frequency,
+                            duration
+                        });
+                    }
+                });
+            }
+            
+            // Collect prescription text
+            const prescriptionText = document.getElementById('prescription_text')?.value || '';
+            const prescriptionInstructions = document.getElementById('prescription_instructions')?.value || '';
+            
+            // Collect tasks data
+            const selectedTasks = [];
+            const taskCheckboxes = document.querySelectorAll('input[name="health_tasks"]:checked');
+            
+            taskCheckboxes.forEach(checkbox => {
+                const label = checkbox.nextElementSibling.textContent.trim();
+                const category = checkbox.getAttribute('data-category') || 'general';
+                
+                selectedTasks.push({
+                    title: label,
+                    description: `Task: ${label}`,
+                    category: category,
+                    icon: 'fas fa-tasks',
+                    source: 'template',
+                    start_date: new Date().toISOString().split('T')[0],
+                    end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    frequency: 'daily',
+                    recurring_days: [],
+                    reminder_times: ['09:00', '14:00', '20:00']
+                });
+            });
+            
+            // Collect custom tasks from selected tasks list
+            const selectedTaskItems = document.querySelectorAll('#selectedTasksList .selected-task-item');
+            
+            selectedTaskItems.forEach(taskItem => {
+                const title = taskItem.querySelector('h6')?.textContent?.trim();
+                const description = taskItem.querySelector('p')?.textContent?.trim();
+                const category = taskItem.querySelector('.task-category-badge')?.textContent?.trim() || 'custom';
+                const durationText = taskItem.querySelector('.task-duration')?.textContent?.trim() || '7 days';
+                const priority = taskItem.querySelector('.task-priority')?.textContent?.trim() || 'medium';
+                
+                // Extract duration number
+                const duration = parseInt(durationText) || 7;
+                
+                if (title && description) {
+                    selectedTasks.push({
+                        title,
+                        description,
+                        category,
+                        priority,
+                        icon: 'fas fa-tasks',
+                        source: 'custom',
+                        start_date: new Date().toISOString().split('T')[0],
+                        end_date: new Date(Date.now() + duration * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                        frequency: 'daily',
+                        recurring_days: [],
+                        reminder_times: ['09:00', '14:00', '20:00']
+                    });
+                }
+            });
+            
+            // Prepare data for API
+            const prescriptionData = {
+                text: prescriptionText,
+                instructions: prescriptionInstructions,
+                medications: medications
+            };
+            
+            const data = {
+                prescription: prescriptionData,
+                tasks: selectedTasks,
+                remove_old_tasks: true // Flag to remove old pending tasks
+            };
+            
+            // Debug logging
+            debugLog('=== SAVING PRESCRIPTION AND TASKS ===');
+            debugLog('Saving data:', data);
+            debugLog('Prescription data:', prescriptionData);
+            debugLog('Tasks data:', selectedTasks);
+            debugLog('Number of tasks:', selectedTasks.length);
+            debugLog('Consultation ID:', consultationId);
+            
+            // Show loading state
+            const saveBtn = document.querySelector('button[onclick="savePrescriptionAndTasks()"]');
+            if (saveBtn) {
+                saveBtn.textContent = 'Saving...';
+                saveBtn.disabled = true;
+            }
+            
+            // Send to backend
+            debugLog('=== SENDING REQUEST TO BACKEND ===');
+            fetch(`/consultation/{{ consultation.id }}/save-prescription-tasks/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                debugLog('Response status:', response.status);
+                return response.json();
+            })
+            .then(result => {
+                debugLog('Result:', result);
+                if (result.success) {
+                    // Show success message
+                    window.consultationRoom.addSystemMessage('Prescription and tasks saved successfully!');
+                    
+                    // Reset form
+                    if (medicationsList) {
+                        medicationsList.innerHTML = `
+                            <div class="medication-item">
+                                <input type="text" placeholder="Medication name" class="med-name">
+                                <input type="text" placeholder="Dosage" class="med-dosage">
+                                <input type="text" placeholder="Frequency" class="med-frequency">
+                                <button onclick="removeMedication(this)" class="btn-remove">×</button>
+                            </div>
+                        `;
+                    }
+                    if (document.getElementById('prescription_text')) {
+                        document.getElementById('prescription_text').value = '';
+                    }
+                    if (document.getElementById('prescription_instructions')) {
+                        document.getElementById('prescription_instructions').value = '';
+                    }
+                    if (document.getElementById('custom_task_title')) {
+                        document.getElementById('custom_task_title').value = '';
+                    }
+                    if (document.getElementById('custom_task_description')) {
+                        document.getElementById('custom_task_description').value = '';
+                    }
+                    
+                    // Uncheck all task checkboxes
+                    taskCheckboxes.forEach(cb => cb.checked = false);
+                    
+                    // Update selected tasks display
+                    updateSelectedTasksDisplay();
+                } else {
+                    window.consultationRoom.addSystemMessage('Failed to save: ' + (result.message || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error saving prescription and tasks:', error);
+                window.consultationRoom.addSystemMessage('Failed to save. Please try again.');
+            })
+            .finally(() => {
+                // Restore button state
+                if (saveBtn) {
+                    saveBtn.textContent = 'Save Prescription & Tasks';
+                    saveBtn.disabled = false;
+                }
+            });
+        }
+        function updateSelectedTasksDisplay() {
+            const selectedCount = document.getElementById('selectedCount');
+            
+            if (selectedCount) {
+                // Count checked checkboxes instead of looking for elements in a list
+                const checkedTasks = document.querySelectorAll('input[name="health_tasks"]:checked');
+                selectedCount.textContent = checkedTasks.length;
+            }
+        }
+        
+        function loadTaskTemplates() {
+            // Load task templates from backend
+            fetch('/api/health-task-templates/')
+                .then(response => response.json())
+                .then(data => {
+                    const taskTemplatesList = document.getElementById('taskTemplates');
+                    if (taskTemplatesList) {
+                        taskTemplatesList.innerHTML = '';
+                        
+                        if (data.success && data.templates && data.templates.length > 0) {
+                            // Use templates from database
+                            data.templates.forEach(template => {
+                                const taskDiv = document.createElement('div');
+                                taskDiv.className = 'task-template';
+                                taskDiv.innerHTML = `
+                                    <div class="task-checkbox">
+                                        <input type="checkbox" name="health_tasks" value="${template.id}" data-category="${template.category}" onchange="updateSelectedTasksDisplay()">
+                                        <label>${template.title}</label>
+                                    </div>
+                                    <div class="task-details">
+                                        <small>${template.description}</small>
+                                    </div>
+                                `;
+                                taskTemplatesList.appendChild(taskDiv);
+                            });
+                        } else {
+                            // Use default templates
+                            const defaultTemplates = [
+                                { id: 1, title: 'Morning Exercise (30 minutes)', category: 'physical', description: 'Start your day with physical activity' },
+                                { id: 2, title: 'Healthy Breakfast', category: 'diet', description: 'Eat a nutritious breakfast' },
+                                { id: 3, title: 'Take Morning Medication', category: 'medical', description: 'Take prescribed medications' },
+                                { id: 4, title: 'Meditation Practice (15 minutes)', category: 'mental', description: 'Practice mindfulness meditation' },
+                                { id: 5, title: 'Drink 8 Glasses of Water', category: 'diet', description: 'Stay hydrated throughout the day' },
+                                { id: 6, title: 'Evening Walk (20 minutes)', category: 'physical', description: 'Take a relaxing evening walk' },
+                                { id: 7, title: 'Sleep by 10 PM', category: 'lifestyle', description: 'Maintain consistent sleep schedule' },
+                                { id: 8, title: 'Eat Vegetables with Every Meal', category: 'diet', description: 'Include vegetables in all meals' }
+                            ];
+                            
+                            defaultTemplates.forEach(template => {
+                                const taskDiv = document.createElement('div');
+                                taskDiv.className = 'task-template';
+                                taskDiv.innerHTML = `
+                                    <div class="task-checkbox">
+                                        <input type="checkbox" name="health_tasks" value="${template.id}" data-category="${template.category}" onchange="updateSelectedTasksDisplay()">
+                                        <label>${template.title}</label>
+                                    </div>
+                                    <div class="task-details">
+                                        <small>${template.description}</small>
+                                    </div>
+                                `;
+                                taskTemplatesList.appendChild(taskDiv);
+                            });
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading task templates:', error);
+                    // Add default templates on error
+                    const taskTemplatesList = document.getElementById('taskTemplates');
+                    if (taskTemplatesList) {
+                        taskTemplatesList.innerHTML = '<p class="error">Failed to load task templates. Please refresh the page.</p>';
+                    }
+                });
+        }
+        
+        function filterTasks(category) {
+            const allTasks = document.querySelectorAll('.task-template');
+            const categoryBtns = document.querySelectorAll('.category-btn');
+            
+            // Update active button
+            categoryBtns.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-category') === category) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Filter tasks
+            allTasks.forEach(task => {
+                const taskCategory = task.querySelector('input').getAttribute('data-category');
+                if (category === 'all' || taskCategory === category) {
+                    task.style.display = 'block';
+                } else {
+                    task.style.display = 'none';
+                }
+            });
+        }
+        
+        function addCustomTask() {
+            const titleInput = document.getElementById('customTaskTitle');
+            const categoryInput = document.getElementById('customTaskCategory');
+            const descriptionInput = document.getElementById('customTaskDescription');
+            const durationInput = document.getElementById('customTaskDuration');
+            const priorityInput = document.getElementById('customTaskPriority');
+            const title = titleInput?.value?.trim() || '';
+            const category = categoryInput?.value || 'mental';
+            const description = descriptionInput?.value?.trim() || '';
+            const duration = durationInput?.value || '7';
+            const priority = priorityInput?.value || 'medium';
+            
+            if (!title || !description) {
+                if (window.consultationRoom) {
+                    window.consultationRoom.addSystemMessage('Please enter a task title and description');
+                }
+                return;
+            }
+            
+            const selectedTasksList = document.getElementById('selectedTasksList');
+            if (selectedTasksList) {
+                const noTasksMessage = selectedTasksList.querySelector('.no-tasks-message');
+                if (noTasksMessage) {
+                    noTasksMessage.remove();
+                }
+
+                const taskItem = document.createElement('div');
+                taskItem.className = 'selected-task-item';
+                taskItem.dataset.source = 'custom';
+                taskItem.innerHTML = `
+                    <div class="task-info">
+                        <h6>${title}</h6>
+                        <p>${description}</p>
+                        <div class="task-meta">
+                            <span class="task-category-badge">${category}</span>
+                            <span class="task-duration">${duration} days</span>
+                            <span class="task-priority ${priority}">${priority}</span>
+                        </div>
+                    </div>
+                    <button onclick="removeSelectedTask(this)" class="btn-remove">&times;</button>
+                `;
+                selectedTasksList.appendChild(taskItem);
+                
+                if (titleInput) titleInput.value = '';
+                if (descriptionInput) descriptionInput.value = '';
+                if (durationInput) durationInput.value = '7';
+                if (categoryInput) categoryInput.value = 'physical';
+                if (priorityInput) priorityInput.value = 'medium';
+                
+                updateSelectedTasksCount();
+                syncDailyTasksJson();
+                
+                if (window.consultationRoom) {
+                    window.consultationRoom.addSystemMessage('Custom task added successfully!');
+                }
+            }
+        }
+        
+        // Initialize task templates when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            if (document.getElementById('saveAllData')) {
+                return;
+            }
+
+            loadTaskTemplates();
+            
+            // Add event listeners for category buttons
+            const categoryBtns = document.querySelectorAll('.category-btn');
+            categoryBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const category = this.getAttribute('data-category');
+                    filterTasks(category);
+                });
+            });
+            
+            // Initialize selected tasks display
+            updateSelectedTasksDisplay();
+            
+            // Add tab switching functionality
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const targetTab = this.getAttribute('data-tab');
+                    
+                    // Remove active class from all tabs and contents
+                    tabBtns.forEach(tab => tab.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    
+                    // Add active class to clicked tab and corresponding content
+                    this.classList.add('active');
+                    const targetContent = document.getElementById(`${targetTab}-tab`);
+                    if (targetContent) {
+                        targetContent.classList.add('active');
+                    }
+                });
+            });
+        });
+        
+        // CSS styles moved to consultation-room-inline.css
+        
+        // Initialize consultation room
+        document.addEventListener('DOMContentLoaded', () => {
+            debugLog('DOM loaded, initializing consultation room...');
+            try {
+                window.consultationRoom = new ConsultationRoom();
+                debugLog('Consultation room initialized successfully');
+                
+                // Test basic functionality
+                setTimeout(() => {
+                    debugLog('Testing basic functionality...');
+                    
+                    // Test medication addition
+                    const medList = document.getElementById('medicationsList');
+                    debugLog('Medications list found:', !!medList);
+                    
+                    // Test custom task button
+                    const addTaskBtn = document.getElementById('addCustomTaskBtn');
+                    debugLog('Add task button found:', !!addTaskBtn);
+                    
+                    // Test custom task form
+                    const taskTitle = document.getElementById('customTaskTitle');
+                    debugLog('Task title field found:', !!taskTitle);
+                    
+                    // Test selected tasks list
+                    const selectedTasks = document.getElementById('selectedTasksList');
+                    debugLog('Selected tasks list found:', !!selectedTasks);
+                    
+                    debugLog('Basic functionality test complete');
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error initializing consultation room:', error);
+            }
+        });
+    </script>
+</body>
+</html>

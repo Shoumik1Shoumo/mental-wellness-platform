@@ -1,0 +1,287 @@
+from pathlib import Path
+import importlib.util
+import os
+import sys
+from urllib.parse import urlparse
+from django.core.exceptions import ImproperlyConfigured
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _load_dotenv(path):
+    if not path.exists():
+        return
+    for line in path.read_text(encoding='utf-8').splitlines():
+        line = line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        key, value = line.split('=', 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+def _env_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _env_list(name, default=None):
+    value = os.environ.get(name)
+    if not value:
+        return default or []
+    return [item.strip() for item in value.split(',') if item.strip()]
+
+
+def _database_from_url(default_sqlite_path):
+    url = os.environ.get('DATABASE_URL', '')
+    if not url:
+        return {'ENGINE': 'django.db.backends.sqlite3', 'NAME': default_sqlite_path}
+    parsed = urlparse(url)
+    if parsed.scheme in {'postgres', 'postgresql'}:
+        return {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed.path.lstrip('/'),
+            'USER': parsed.username or '',
+            'PASSWORD': parsed.password or '',
+            'HOST': parsed.hostname or '',
+            'PORT': parsed.port or '',
+        }
+    if parsed.scheme == 'sqlite':
+        return {'ENGINE': 'django.db.backends.sqlite3', 'NAME': parsed.path}
+    return {'ENGINE': 'django.db.backends.sqlite3', 'NAME': default_sqlite_path}
+
+
+LOCAL_MANAGEMENT_COMMANDS = {
+    'runserver',
+    'check',
+    'migrate',
+    'makemigrations',
+    'collectstatic',
+    'populate_assessment',
+    'repair_core_assessment_questions',
+    'sync_chatbot_knowledge',
+    'check_chatbot_ai',
+    'test',
+    'shell',
+}
+
+
+_load_dotenv(BASE_DIR / '.env')
+
+# Security settings
+DEBUG = _env_bool('DEBUG', 'runserver' in sys.argv and 'DEBUG' not in os.environ or any(command in sys.argv for command in LOCAL_MANAGEMENT_COMMANDS))
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG or any(command in sys.argv for command in LOCAL_MANAGEMENT_COMMANDS):
+        SECRET_KEY = 'django-insecure-local-development-only-change-me'
+    else:
+        raise ImproperlyConfigured('SECRET_KEY must be set when DEBUG=False.')
+ALLOWED_HOSTS = _env_list('ALLOWED_HOSTS', ['127.0.0.1', 'localhost', 'testserver'])
+SITE_DOMAIN = os.environ.get('SITE_DOMAIN', '')
+if SITE_DOMAIN and SITE_DOMAIN not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(SITE_DOMAIN)
+
+# Custom User Model
+AUTH_USER_MODEL = 'home.User'
+SITE_ID = int(os.environ.get('SITE_ID', '1'))
+
+# Authentication
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = '/auth/redirect/'
+LOGOUT_REDIRECT_URL = '/'
+
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+
+ACCOUNT_EMAIL_VERIFICATION = os.environ.get('ACCOUNT_EMAIL_VERIFICATION', 'optional')
+ACCOUNT_LOGIN_METHODS = {'username', 'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
+ACCOUNT_UNIQUE_EMAIL = True
+
+ACCOUNT_LOGOUT_REDIRECT_URL = '/'
+ACCOUNT_SIGNUP_REDIRECT_URL = '/auth/redirect/'
+SOCIALACCOUNT_LOGIN_REDIRECT_URL = '/auth/redirect/'
+
+SOCIALACCOUNT_ADAPTER = 'home.adapters.CustomSocialAccountAdapter'
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_QUERY_EMAIL = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+SOCIALACCOUNT_LOGIN_ON_GET = False
+SOCIALACCOUNT_STORE_TOKENS = False
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+            'prompt': 'select_account',
+        },
+        'APP': {
+            'client_id': GOOGLE_CLIENT_ID,
+            'secret': GOOGLE_CLIENT_SECRET,
+            'key': '',
+        },
+    }
+}
+
+# Application definition
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.sites',
+    'django.contrib.staticfiles',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'home',  # Your app here
+]
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+if importlib.util.find_spec('whitenoise'):
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+
+ROOT_URLCONF = 'wellness_platform.urls'
+
+# Templates configuration
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        # Look for templates in the base directory
+        'DIRS': [BASE_DIR / 'templates'],
+        'APP_DIRS': True,  # Look for templates in app directories too
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = 'wellness_platform.wsgi.application'
+
+# Database configuration
+DATABASES = {
+    'default': _database_from_url(BASE_DIR / 'db.sqlite3')
+}
+
+# Password validation settings
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator', },
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', },
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator', },
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator', },
+]
+
+# Localization settings
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'Asia/Dhaka'  # UTC+06:00 timezone
+USE_I18N = True
+USE_TZ = True
+
+# Static files configuration
+STATIC_URL = '/static/'  # URL for accessing static files
+
+# This is for collecting static files in one place for production
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+if importlib.util.find_spec('whitenoise') and not DEBUG and 'test' not in sys.argv:
+    static_manifest = BASE_DIR / 'staticfiles' / 'staticfiles.json'
+    staticfiles_backend = (
+        'whitenoise.storage.CompressedManifestStaticFilesStorage'
+        if static_manifest.exists()
+        else 'django.contrib.staticfiles.storage.StaticFilesStorage'
+    )
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': staticfiles_backend,
+        },
+    }
+
+# Email configuration. Runtime mail can also be managed from the admin panel;
+# these environment values remain the fallback when no active DB config exists.
+if DEBUG:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = _env_bool('EMAIL_USE_TLS', True)
+EMAIL_USE_SSL = _env_bool('EMAIL_USE_SSL', False)
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@mentalwellness.local')
+
+# TESTING MODE: Real payment gateway charging is disabled for local/development booking.
+# TODO: Enable real payment gateway verification in production by setting PAYMENT_TEST_MODE=False.
+PAYMENT_TEST_MODE = _env_bool('PAYMENT_TEST_MODE', True)
+PAYMENT_TEST_OTP = os.environ.get('PAYMENT_TEST_OTP', '123456')
+SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', DEFAULT_FROM_EMAIL)
+ADMIN_NOTIFICATION_EMAIL = os.environ.get('ADMIN_NOTIFICATION_EMAIL', SUPPORT_EMAIL)
+
+# User-uploaded files, such as doctor profile images and prescription PDFs.
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Security settings
+SECURE_SSL_REDIRECT = _env_bool('SECURE_SSL_REDIRECT', False)
+SESSION_COOKIE_SECURE = _env_bool('SESSION_COOKIE_SECURE', False)
+CSRF_COOKIE_SECURE = _env_bool('CSRF_COOKIE_SECURE', False)
+SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '0'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', False)
+SECURE_HSTS_PRELOAD = _env_bool('SECURE_HSTS_PRELOAD', False)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Hybrid emergency chatbot configuration.
+# The free default provider is Ollama running locally. Gemini remains optional.
+# When AI is disabled or unavailable, the chatbot still uses crisis rules,
+# platform RAG, curated wellness RAG, and local safe fallback responses.
+CHATBOT_AI_ENABLED = _env_bool('CHATBOT_AI_ENABLED', False)
+CHATBOT_AI_PROVIDER = os.environ.get('CHATBOT_AI_PROVIDER', 'ollama').strip().lower()
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-1.5-flash').strip() or 'gemini-1.5-flash'
+OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').strip().rstrip('/')
+OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'llama3.2:3b').strip() or 'llama3.2:3b'
+CHATBOT_TIMEOUT = int(os.environ.get('CHATBOT_TIMEOUT', '6'))
+CHATBOT_MAX_MESSAGE_LENGTH = int(os.environ.get('CHATBOT_MAX_MESSAGE_LENGTH', '1000'))
+CHATBOT_AUTO_SYNC_KNOWLEDGE = _env_bool('CHATBOT_AUTO_SYNC_KNOWLEDGE', False)
+
+CSRF_TRUSTED_ORIGINS = _env_list('CSRF_TRUSTED_ORIGINS', [
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
+])
+if SITE_DOMAIN:
+    https_site_origin = f'https://{SITE_DOMAIN}'
+    if https_site_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(https_site_origin)
