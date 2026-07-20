@@ -22,11 +22,6 @@ from urllib import error, request
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = PROJECT_ROOT / "chatbot_knowledge" / "wellness" / "auto_generated"
-
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:1b")
-OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_DOC_BUILD_TIMEOUT", "90"))
-
 SOURCES = [
     {
         "title": "Anxiety, fear and panic",
@@ -134,41 +129,6 @@ def clean_page_text(raw_html: str) -> str:
     return cleaned[:9000]
 
 
-def ollama_markdown(source: dict, cleaned_text: str) -> str:
-    system_prompt = (
-        "You create safe RAG knowledge notes for a mental wellness chatbot. "
-        "Use only the provided source text. Do not diagnose, prescribe medicine, or provide crisis methods. "
-        "Write concise Markdown with exactly these sections: Summary, Quick support, Suggested response, Bot guidance, Safety note. "
-        "For doctor/therapist suggestions, tell users to complete the platform assessment questionnaire first."
-    )
-    user_prompt = f"""
-Title: {source['title']}
-Source: {source['source']}
-URL: {source['url']}
-Category: {source['category']}
-
-Source text:
-{cleaned_text}
-""".strip()
-    payload = {
-        "model": OLLAMA_MODEL,
-        "stream": False,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "options": {"temperature": 0.1, "num_predict": 650},
-    }
-    req = request.Request(
-        f"{OLLAMA_BASE_URL}/api/chat",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with request.urlopen(req, timeout=OLLAMA_TIMEOUT) as response:
-        data = json.loads(response.read().decode("utf-8"))
-    return (data.get("message", {}) or {}).get("content", "").strip()
-
 
 def fallback_markdown(source: dict, cleaned_text: str) -> str:
     sentences = re.split(r"(?<=[.!?])\s+", re.sub(r"\s+", " ", cleaned_text).strip())
@@ -190,7 +150,7 @@ Safety note: If the user mentions suicide, self-harm, violence, overdose, or imm
 
 def build_document(source: dict, cleaned_text: str) -> str:
     try:
-        body = ollama_markdown(source, cleaned_text)
+        body = fallback_markdown(source, cleaned_text)
         if not body or len(body) < 200:
             raise ValueError("Ollama returned an empty or too-short document")
     except (TimeoutError, error.HTTPError, error.URLError, OSError, ValueError, json.JSONDecodeError) as exc:

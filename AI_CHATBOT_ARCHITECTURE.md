@@ -5,10 +5,10 @@
 The emergency page chatbot runs on normal Django WSGI views and can work without a paid API key. The recommended free setup is:
 
 ```text
-Crisis rules + Platform RAG + Local Ollama + Curated wellness docs
+Crisis rules + Platform RAG + Local Gemini + Curated wellness docs
 ```
 
-Ollama is optional. If Ollama is not running, the chatbot still uses local crisis rules, platform RAG, curated wellness RAG, and safe fallback responses.
+Gemini is optional. If Gemini is not running, the chatbot still uses local crisis rules, platform RAG, curated wellness RAG, and safe fallback responses.
 
 ## Runtime Flow
 
@@ -35,18 +35,18 @@ Platform-related?
   ↓ yes → RAG over platform pages, doctors, assessments, booking, dashboards, etc.
   ↓ no
 General wellness?
-  ↓ yes → curated wellness RAG + optional local Ollama response
+  ↓ yes → curated wellness RAG + optional local Gemini response
   ↓ no
 Local safe fallback
 ```
 
 ## AI Provider Options
 
-### Free local provider: Ollama
+### Free local provider: Gemini
 
 ```env
 CHATBOT_AI_ENABLED=True
-CHATBOT_AI_PROVIDER=ollama
+CHATBOT_AI_PROVIDER=gemini
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2:3b
 CHATBOT_TIMEOUT=6
@@ -55,13 +55,13 @@ CHATBOT_TIMEOUT=6
 Recommended starter model:
 
 ```bash
-ollama pull llama3.2:3b
+gemini pull llama3.2:3b
 ```
 
 Stronger model if the machine can handle it:
 
 ```bash
-ollama pull llama3.1:8b
+gemini pull llama3.1:8b
 ```
 
 ### Optional cloud provider: Gemini
@@ -117,4 +117,4 @@ Run:
 python manage.py check_chatbot_ai
 ```
 
-The command prints only safe success/failure messages. If Ollama or Gemini is unavailable, the chatbot still works with RAG and local fallback.
+The command prints only safe success/failure messages. If Gemini or Gemini is unavailable, the chatbot still works with RAG and local fallback.

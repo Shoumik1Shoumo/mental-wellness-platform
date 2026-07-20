@@ -1,10 +1,11 @@
 {% load static %}
+<link rel="stylesheet" href="{% static 'css/mindlift-logo.css' %}">
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Appointments | Mental Wellness Platform</title>
+    <title>My Appointments | MindLift</title>
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'css/mobile-navbar.css' %}">
     <script src="{% static 'js/mobile-navbar.js' %}" defer></script>
@@ -19,7 +20,7 @@
     <!-- Navigation -->
     <nav class="navbar" role="navigation" aria-label="Main navigation">
         <div class="container">
-            <a href="{% url 'doctor_dashboard' %}" class="navbar-brand">Mental Wellness Platform</a>
+            <a href="{% url 'doctor_dashboard' %}" class="navbar-brand"><span class="mindlift-logo">MindLift</span></a>
             <button class="navbar-toggle" aria-label="Toggle navigation menu">
                 <span class="hamburger"></span>
             </button>

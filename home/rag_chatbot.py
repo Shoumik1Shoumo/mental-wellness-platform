@@ -29,12 +29,13 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 CHATBOT_AI_ENABLED = getattr(settings, 'CHATBOT_AI_ENABLED', False)
-CHATBOT_AI_PROVIDER = getattr(settings, 'CHATBOT_AI_PROVIDER', 'ollama')
+CHATBOT_AI_PROVIDER = getattr(settings, 'CHATBOT_AI_PROVIDER', 'gemini')
 GEMINI_API_KEY = getattr(settings, 'GEMINI_API_KEY', '')
-GEMINI_MODEL = getattr(settings, 'GEMINI_MODEL', 'gemini-1.5-flash')
-OLLAMA_BASE_URL = getattr(settings, 'OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/')
-OLLAMA_MODEL = getattr(settings, 'OLLAMA_MODEL', 'llama3.2:3b')
+GEMINI_MODEL = getattr(settings, 'GEMINI_MODEL', 'gemini-3.5-flash')
 CHAT_TIMEOUT = getattr(settings, 'CHATBOT_TIMEOUT', 6)
+OPENAI_COMPAT_API_KEY = getattr(settings, 'OPENAI_COMPAT_API_KEY', '')
+OPENAI_COMPAT_BASE_URL = getattr(settings, 'OPENAI_COMPAT_BASE_URL', '')
+OPENAI_COMPAT_MODEL = getattr(settings, 'OPENAI_COMPAT_MODEL', 'gemini-3.5-flash')
 CHATBOT_MAX_MESSAGE_LENGTH = getattr(settings, 'CHATBOT_MAX_MESSAGE_LENGTH', 1000)
 LOCAL_EMBED_DIM = 384
 LOCAL_EMBED_MODEL_NAME = 'local-hash-embedding'
@@ -454,7 +455,7 @@ def build_system_prompt(language='en', platform_mode=False):
     else:
         language_rule = "Reply in English unless the user switches language."
     source_rule = (
-        "You are the offline AI assistant for a Mental Wellness Platform. "
+        "You are the offline AI assistant for a MindLift. "
         "Use only the provided platform context for platform-specific facts. "
         if platform_mode
         else "You are an offline AI mental health support assistant. "
@@ -797,49 +798,14 @@ def strip_doc_metadata(text):
 def ai_chat(system_prompt, user_prompt):
     if not getattr(settings, 'CHATBOT_AI_ENABLED', False):
         return ''
-    provider = (getattr(settings, 'CHATBOT_AI_PROVIDER', 'ollama') or '').lower()
-    if provider == 'ollama':
-        return ollama_chat(system_prompt, user_prompt)
+    provider = (getattr(settings, 'CHATBOT_AI_PROVIDER', 'gemini') or '').lower()
     if provider == 'gemini':
         return gemini_chat(system_prompt, user_prompt)
+    if provider in ('openai_compatible', 'openai-compatible'):
+        return openai_compatible_chat(system_prompt, user_prompt)
     logger.warning('Unsupported chatbot provider %s; using local fallback.', provider)
     return ''
 
-
-def ollama_chat(system_prompt, user_prompt):
-    base_url = getattr(settings, 'OLLAMA_BASE_URL', OLLAMA_BASE_URL).rstrip('/')
-    model = getattr(settings, 'OLLAMA_MODEL', OLLAMA_MODEL)
-    timeout = getattr(settings, 'CHATBOT_TIMEOUT', CHAT_TIMEOUT)
-    if not model:
-        return ''
-
-    url = f'{base_url}/api/chat'
-    payload = {
-        'model': model,
-        'stream': False,
-        'messages': [
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': user_prompt},
-        ],
-        'options': {
-            'temperature': 0.25,
-            'num_predict': 220,
-        },
-    }
-    req = request.Request(
-        url,
-        data=json.dumps(payload).encode('utf-8'),
-        headers={'Content-Type': 'application/json'},
-        method='POST',
-    )
-    try:
-        with request.urlopen(req, timeout=timeout) as response:
-            data = json.loads(response.read().decode('utf-8'))
-        text = data.get('message', {}).get('content', '') or data.get('response', '')
-        return compact_response(text)
-    except Exception as exc:
-        logger.warning('Ollama chatbot unavailable; using RAG/local fallback: %s', exc)
-        return ''
 
 
 def gemini_chat(system_prompt, user_prompt):
@@ -875,6 +841,38 @@ def gemini_chat(system_prompt, user_prompt):
         return compact_response(text)
     except Exception as exc:
         logger.warning('Gemini chatbot unavailable; using local fallback: %s', exc)
+        return ''
+
+
+
+def openai_compatible_chat(system_prompt, user_prompt):
+    api_key = getattr(settings, 'OPENAI_COMPAT_API_KEY', '')
+    base_url = getattr(settings, 'OPENAI_COMPAT_BASE_URL', '').rstrip('/')
+    model = getattr(settings, 'OPENAI_COMPAT_MODEL', 'gemini-3.5-flash')
+    timeout = getattr(settings, 'CHATBOT_TIMEOUT', 6)
+    if not api_key or not base_url:
+        return ''
+    payload = {
+        'model': model,
+        'messages': [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_prompt},
+        ],
+        'temperature': 0.35,
+        'max_tokens': 220,
+    }
+    req = request.Request(
+        base_url + '/chat/completions',
+        data=json.dumps(payload).encode('utf-8'),
+        headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {api_key}'},
+        method='POST',
+    )
+    try:
+        with request.urlopen(req, timeout=timeout) as response:
+            data = json.loads(response.read().decode('utf-8'))
+        return compact_response(data.get('choices', [{}])[0].get('message', {}).get('content', ''))
+    except Exception as exc:
+        logger.warning('OpenAI-compatible chatbot unavailable; using local fallback: %s', exc)
         return ''
 
 

@@ -1341,13 +1341,13 @@ def password_reset_send_view(request):
         return render(request, 'auth/forgot_password.html', context)
 
     reset_link, uidb64, token = _build_password_reset_link(request, user)
-    subject = 'Reset your Mental Wellness Platform password'
+    subject = 'Reset your MindLift password'
     message = (
         f'Hello {user.get_full_name() or user.username},\n\n'
-        'We received a request to reset your password on Mental Wellness Platform.\n'
+        'We received a request to reset your password on MindLift.\n'
         f'Use the secure link below to set a new password:\n{reset_link}\n\n'
         'If you did not request this reset, you can ignore this email.\n\n'
-        'Mental Wellness Platform'
+        'MindLift'
     )
     try:
         sent_count = send_configured_mail(subject, message, [user.email], fail_silently=False)
@@ -4007,7 +4007,7 @@ Please join the consultation using the meeting link at the scheduled time.
 For support, contact {support_contact}.
 
 Thank you,
-Mental Wellness Platform Team
+MindLift Team
 """
 
     doctor_subject = 'New consultation appointment booked'
@@ -4031,7 +4031,7 @@ Meeting Link:
 For support, contact {support_contact}.
 
 Thank you,
-Mental Wellness Platform Team
+MindLift Team
 """
 
     if patient.email:

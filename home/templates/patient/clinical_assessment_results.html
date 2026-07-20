@@ -1,10 +1,11 @@
 {% load static %}
+<link rel="stylesheet" href="{% static 'css/mindlift-logo.css' %}">
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clinical Assessment Results | Mental Wellness Platform</title>
+    <title>Clinical Assessment Results | MindLift</title>
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'css/mobile-navbar.css' %}">
     <link rel="stylesheet" href="{% static 'css/clinical-assessment.css' %}">
@@ -14,7 +15,7 @@
 <body>
     <nav class="navbar" role="navigation" aria-label="Main navigation">
         <div class="container">
-            <a href="{% url 'patient_dashboard' %}" class="navbar-brand">Mental Wellness Platform</a>
+            <a href="{% url 'patient_dashboard' %}" class="navbar-brand"><span class="mindlift-logo">MindLift</span></a>
             <button class="navbar-toggle" onclick="toggleNavbar()" aria-label="Toggle navigation menu">
                 <span class="hamburger"></span>
             </button>

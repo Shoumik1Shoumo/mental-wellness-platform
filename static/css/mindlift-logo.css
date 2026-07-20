@@ -1,0 +1,18 @@
+/* MindLift logo - brand styling only */
+.mindlift-logo {
+    font-family: "Inter", "Poppins", "Segoe UI", sans-serif;
+    font-weight: 800;
+    font-size: 1.45rem;
+    letter-spacing: -0.04em;
+    text-decoration: none;
+    background: linear-gradient(90deg, #1e40af, #2563eb 45%, #14b8a6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    display: inline-block;
+    transition: transform .2s ease, opacity .2s ease;
+}
+.mindlift-logo:hover {
+    transform: translateY(-1px);
+    opacity: .9;
+}

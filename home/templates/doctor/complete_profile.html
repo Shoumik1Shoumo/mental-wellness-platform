@@ -1,10 +1,11 @@
 {% load static %}
+<link rel="stylesheet" href="{% static 'css/mindlift-logo.css' %}">
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Complete Profile | Mental Wellness Platform</title>
+    <title>Complete Profile | MindLift</title>
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'css/doctor-complete-profile.css' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,7 +18,7 @@
     <!-- Navigation -->
     <nav class="navbar" role="navigation" aria-label="Main navigation">
         <div class="container">
-            <a href="{% url 'doctor_dashboard' %}" class="navbar-brand" aria-label="Mental Wellness Platform Home">Mental Wellness Platform</a>
+            <a href="{% url 'doctor_dashboard' %}" class="navbar-brand" aria-label="MindLift Home"><span class="mindlift-logo">MindLift</span></a>
             <ul class="navbar-nav">
                 <li><a href="{% url 'doctor_dashboard' %}" aria-label="Dashboard">Dashboard</a></li>
                 <li><a href="{% url 'logout' %}" aria-label="Logout">Logout</a></li>

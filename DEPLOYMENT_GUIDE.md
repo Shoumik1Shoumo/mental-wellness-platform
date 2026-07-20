@@ -1,4 +1,4 @@
-# Mental Wellness Platform Deployment Guide
+# MindLift Deployment Guide
 
 This project is a Django application with role-based users, doctor scheduling,
 appointments, payments in test mode, consultations, prescriptions, task

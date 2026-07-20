@@ -1,4 +1,4 @@
-# Mental Wellness Platform
+# MindLift
 
 A comprehensive Django-based mental health consultation platform that provides secure, professional mental health support through video consultations with certified professionals.
 
@@ -229,7 +229,7 @@ MentalWellnessPlatform/
 
 ## 🤝 Contributing
 
-We welcome contributions to Mental Wellness Platform!
+We welcome contributions to MindLift!
 
 ### Development Guidelines
 - Follow Django best practices
@@ -253,4 +253,4 @@ This project is licensed under the MIT License.
 
 **Made with ❤️ for mental wellness**
 
-Mental Wellness Platform © 2026 All rights reserved.
+MindLift © 2026 All rights reserved.

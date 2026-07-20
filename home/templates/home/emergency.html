@@ -1,4 +1,5 @@
 {% load static %}
+<link rel="stylesheet" href="{% static 'css/mindlift-logo.css' %}">
 <!doctype html>
 <html lang="en">
   <head>
@@ -6,8 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Emergency Help - Get immediate support for suicidal thoughts and mental health crisis. 24/7 helpline available." />
     <meta name="keywords" content="emergency help, suicidal thoughts, crisis hotline, mental health emergency, suicide prevention" />
-    <meta name="author" content="Mental Wellness Platform" />
-    <title>Emergency Help | Mental Wellness Platform</title>
+    <meta name="author" content="MindLift" />
+    <title>Emergency Help | MindLift</title>
     <link rel="stylesheet" href="{% static 'css/main.css' %}" />
     <link rel="stylesheet" href="{% static 'css/emergency.css' %}" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -140,7 +141,7 @@
     <!-- Navigation -->
     <nav class="navbar" role="navigation" aria-label="Main navigation">
       <div class="container">
-        <a href="{% url 'home' %}" class="navbar-brand" aria-label="Mental Wellness Platform Home">Mental Wellness Platform</a>
+        <a href="{% url 'home' %}" class="navbar-brand" aria-label="MindLift Home"><span class="mindlift-logo">MindLift</span></a>
         <ul class="navbar-nav">
           <li><a href="{% url 'home' %}" class="nav-link">Home</a></li>
           {% if user.is_authenticated %}
@@ -220,6 +221,46 @@
         </div>
       </div>
     </section>
+
+    <!-- Breathing Exercise Section -->
+    <section class="breathing-exercise-section">
+      <div class="container">
+        <div class="breathing-header">
+          <h2>Quick Breathing Exercise</h2>
+          <p>Calm your mind with this simple breathing technique.</p>
+        </div>
+        
+        <div class="breathing-content">
+          <div class="breathing-visual">
+            <div class="breathing-circle">
+              <div class="circle" id="breathingCircle"></div>
+              <p class="breathing-text" id="breathingText">Ready? Start the exercise</p>
+            </div>
+          </div>
+          
+          <div class="breathing-instructions">
+            <h3>3-3-3 Method:</h3>
+            <ol>
+              <li><strong>Breathe In:</strong> 3 seconds</li>
+              <li><strong>Hold:</strong> 3 seconds</li>
+              <li><strong>Breathe Out:</strong> 3 seconds</li>
+            </ol>
+            
+            <div class="breathing-tips">
+              <h4>Quick Tips:</h4>
+              <ul>
+                <li>Sit comfortably</li>
+                <li>Follow the circle's rhythm</li>
+                <li>Repeat until calm</li>
+              </ul>
+            </div>
+            
+            <button class="btn-breathing-start" id="startBtn">Start Exercise</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
 
     <!-- Crisis Management Steps -->
     <section class="crisis-steps">
@@ -358,45 +399,6 @@
       </div>
     </section>
 
-    <!-- Breathing Exercise Section -->
-    <section class="breathing-exercise-section">
-      <div class="container">
-        <div class="breathing-header">
-          <h2>Quick Breathing Exercise</h2>
-          <p>Calm your mind with this simple breathing technique.</p>
-        </div>
-        
-        <div class="breathing-content">
-          <div class="breathing-visual">
-            <div class="breathing-circle">
-              <div class="circle" id="breathingCircle"></div>
-              <p class="breathing-text" id="breathingText">Click Start to begin</p>
-            </div>
-          </div>
-          
-          <div class="breathing-instructions">
-            <h3>3-3-3 Method:</h3>
-            <ol>
-              <li><strong>Breathe In:</strong> 3 seconds</li>
-              <li><strong>Hold:</strong> 3 seconds</li>
-              <li><strong>Breathe Out:</strong> 3 seconds</li>
-            </ol>
-            
-            <div class="breathing-tips">
-              <h4>Quick Tips:</h4>
-              <ul>
-                <li>Sit comfortably</li>
-                <li>Follow the circle's rhythm</li>
-                <li>Repeat until calm</li>
-              </ul>
-            </div>
-            
-            <button class="btn-breathing-start" id="startBtn">Start Exercise</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <!-- Important Message -->
     <section class="important-message">
       <div class="container">
@@ -420,7 +422,7 @@
     <footer class="emergency-footer">
       <div class="container">
         <div class="footer-content">
-          <p>&copy; 2024 Mental Wellness Platform. All rights reserved.</p>
+          <p>&copy; 2024 MindLift. All rights reserved.</p>
           <p>Available 24/7 for your mental health needs.</p>
         </div>
       </div>
@@ -912,7 +914,7 @@
           isRunning = false;
           button.textContent = 'Start Exercise';
           button.style.background = '';
-          text.textContent = 'Click Start to begin';
+          text.textContent = 'Ready? Start the exercise';
           circle.style.transform = 'scale(1.0)';
           circle.style.boxShadow = '0 0 30px rgba(8, 161, 247, 0.4)';
           

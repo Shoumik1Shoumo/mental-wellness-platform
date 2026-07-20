@@ -264,16 +264,17 @@ SECURE_HSTS_PRELOAD = _env_bool('SECURE_HSTS_PRELOAD', False)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Hybrid emergency chatbot configuration.
-# The free default provider is Ollama running locally. Gemini remains optional.
+# Gemini is used as the chatbot provider.
 # When AI is disabled or unavailable, the chatbot still uses crisis rules,
 # platform RAG, curated wellness RAG, and local safe fallback responses.
 CHATBOT_AI_ENABLED = _env_bool('CHATBOT_AI_ENABLED', False)
-CHATBOT_AI_PROVIDER = os.environ.get('CHATBOT_AI_PROVIDER', 'ollama').strip().lower()
+CHATBOT_AI_PROVIDER = os.environ.get('CHATBOT_AI_PROVIDER', 'gemini').strip().lower()
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
-GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-1.5-flash').strip() or 'gemini-1.5-flash'
-OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').strip().rstrip('/')
-OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'llama3.2:3b').strip() or 'llama3.2:3b'
-CHATBOT_TIMEOUT = int(os.environ.get('CHATBOT_TIMEOUT', '6'))
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-3.5-flash').strip() or 'gemini-3.5-flash'
+OPENAI_COMPAT_API_KEY = os.environ.get('OPENAI_COMPAT_API_KEY', '')
+OPENAI_COMPAT_BASE_URL = os.environ.get('OPENAI_COMPAT_BASE_URL', '')
+OPENAI_COMPAT_MODEL = os.environ.get('OPENAI_COMPAT_MODEL', 'gemini-3.5-flash').strip() or 'gemini-3.5-flash'
+CHAT_TIMEOUT = int(os.environ.get('CHATBOT_TIMEOUT', '6'))
 CHATBOT_MAX_MESSAGE_LENGTH = int(os.environ.get('CHATBOT_MAX_MESSAGE_LENGTH', '1000'))
 CHATBOT_AUTO_SYNC_KNOWLEDGE = _env_bool('CHATBOT_AUTO_SYNC_KNOWLEDGE', False)
 

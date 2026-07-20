@@ -22,8 +22,8 @@ from .models import (
 from .assessment_core import CORE_ASSESSMENT_WARNING
 from .system_config import get_admin_notification_email, get_email_connection_kwargs
 
-admin.site.site_header = 'Mental Wellness Platform Admin'
-admin.site.site_title = 'Mental Wellness Platform Admin'
+admin.site.site_header = 'MindLift Admin'
+admin.site.site_title = 'MindLift Admin'
 admin.site.index_title = 'Model Console'
 admin.site.enable_nav_sidebar = True
 
@@ -208,7 +208,7 @@ class SystemEmailConfigAdmin(SuperuserOnlyAdminMixin, OptimizedAdminMixin, admin
                 from django.core.mail import get_connection
                 connection = get_connection(**kwargs)
             send_mail(
-                'Mental Wellness Platform email test',
+                'MindLift email test',
                 'Your admin-managed email configuration is working.',
                 config.default_from_email,
                 [recipient],

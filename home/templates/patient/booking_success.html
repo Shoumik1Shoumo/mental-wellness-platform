@@ -1,10 +1,11 @@
 {% load static %}
+<link rel="stylesheet" href="{% static 'css/mindlift-logo.css' %}">
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Booking Confirmed | Mental Wellness Platform</title>
+    <title>Booking Confirmed | MindLift</title>
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
     <link rel="stylesheet" href="{% static 'css/booking-page-professional.css' %}">
@@ -18,7 +19,7 @@
 <body>
     <nav class="navbar" role="navigation" aria-label="Main navigation">
         <div class="container">
-            <a href="{% url 'patient_dashboard' %}" class="navbar-brand">Mental Wellness Platform</a>
+            <a href="{% url 'patient_dashboard' %}" class="navbar-brand"><span class="mindlift-logo">MindLift</span></a>
             <ul class="navbar-nav">
                 <li><a href="{% url 'patient_dashboard' %}">Dashboard</a></li>
                 <li><a href="{% url 'doctors_list' %}">Doctors</a></li>
@@ -146,7 +147,7 @@
             if (!receiptButton) return;
             receiptButton.addEventListener('click', function() {
                 const lines = [
-                    'Mental Wellness Platform Receipt',
+                    'MindLift Receipt',
                     `Appointment ID: ${receiptButton.dataset.appointmentId}`,
                     `Doctor: ${receiptButton.dataset.doctor}`,
                     `Date: ${receiptButton.dataset.date}`,

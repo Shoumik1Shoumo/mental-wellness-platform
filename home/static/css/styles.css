@@ -763,7 +763,6 @@ body {
     flex: 1;
     font-size: 1.1rem;
     line-height: 1.5;
-    animation: emergencyGlow 2s ease-in-out infinite;
     font-weight: 700;
 }
 
@@ -783,7 +782,6 @@ body {
     font-weight: 900;
     font-size: 1.2rem;
     text-shadow: 0 0 15px rgba(255, 255, 0, 0.9);
-    animation: emergencyHighlight 1s ease-in-out infinite;
     display: inline-block;
 }
 

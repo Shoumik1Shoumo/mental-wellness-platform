@@ -20,8 +20,8 @@ Push only source code, templates, static source files, migrations, docs, and saf
 In a PythonAnywhere Bash console:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/Mental-Wellness-Platform.git
-cd Mental-Wellness-Platform
+git clone https://github.com/YOUR_USERNAME/MindLift.git
+cd MindLift
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
@@ -105,9 +105,9 @@ SQLite can work for a small demo. For heavier use, set `DATABASE_URL` to a hoste
 
 In the PythonAnywhere Web tab, set:
 
-- Source code: `/home/yourusername/Mental-Wellness-Platform`
-- Working directory: `/home/yourusername/Mental-Wellness-Platform`
-- Virtualenv: `/home/yourusername/Mental-Wellness-Platform/.venv`
+- Source code: `/home/yourusername/MindLift`
+- Working directory: `/home/yourusername/MindLift`
+- Virtualenv: `/home/yourusername/MindLift/.venv`
 
 Edit the WSGI file:
 
@@ -115,7 +115,7 @@ Edit the WSGI file:
 import os
 import sys
 
-project_home = '/home/yourusername/Mental-Wellness-Platform'
+project_home = '/home/yourusername/MindLift'
 if project_home not in sys.path:
     sys.path.insert(0, project_home)
 
@@ -130,19 +130,19 @@ application = get_wsgi_application()
 In the Web tab static files section:
 
 - URL: `/static/`
-- Directory: `/home/yourusername/Mental-Wellness-Platform/staticfiles`
+- Directory: `/home/yourusername/MindLift/staticfiles`
 
 For uploaded media in a demo:
 
 - URL: `/media/`
-- Directory: `/home/yourusername/Mental-Wellness-Platform/media`
+- Directory: `/home/yourusername/MindLift/media`
 
 ## 8. Daily Task Reminder Scheduled Task
 
 Add a PythonAnywhere scheduled task, for example daily at 7:05 PM Asia/Dhaka:
 
 ```bash
-cd /home/yourusername/Mental-Wellness-Platform && source .venv/bin/activate && python manage.py check_task_reminders
+cd /home/yourusername/MindLift && source .venv/bin/activate && python manage.py check_task_reminders
 ```
 
 Use `--force` only for manual testing.

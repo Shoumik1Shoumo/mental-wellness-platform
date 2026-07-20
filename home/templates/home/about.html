@@ -1,10 +1,11 @@
 {% load static %}
+<link rel="stylesheet" href="{% static 'css/mindlift-logo.css' %}">
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About Us | Mental Wellness Platform</title>
+    <title>About Us | MindLift</title>
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
     <link rel="stylesheet" href="{% static 'css/about.css' %}">
@@ -18,7 +19,7 @@
     <!-- Navigation -->
     <nav class="navbar">
         <div class="container">
-            <a href="{% if user.is_authenticated %}{% if user.role == 'patient' %}{% url 'patient_dashboard' %}{% elif user.role == 'doctor' %}{% url 'doctor_dashboard' %}{% else %}{% url 'home' %}{% endif %}{% else %}{% url 'home' %}{% endif %}" class="navbar-brand">Mental Wellness Platform</a>
+            <a href="{% if user.is_authenticated %}{% if user.role == 'patient' %}{% url 'patient_dashboard' %}{% elif user.role == 'doctor' %}{% url 'doctor_dashboard' %}{% else %}{% url 'home' %}{% endif %}{% else %}{% url 'home' %}{% endif %}" class="navbar-brand"><span class="mindlift-logo">MindLift</span></a>
             <button class="navbar-toggle" aria-label="Toggle navigation menu">
                 <span class="hamburger"></span>
             </button>
@@ -43,7 +44,7 @@
     <section class="about-hero">
         <div class="container">
             <div class="hero-content">
-                <h1>About Mental Wellness Platform</h1>
+                <h1>About MindLift</h1>
                 <p>Empowering minds through compassionate mental health care, built by students for students.</p>
                 <div class="hero-stats">
                     <div class="stat">
@@ -215,7 +216,7 @@
                         <div class="timeline-date">2024</div>
                         <div class="timeline-content">
                             <h3>Platform Launch</h3>
-                            <p>After months of development, testing, and refinement, we launched the Mental Wellness Platform - a comprehensive solution for mental health support.</p>
+                            <p>After months of development, testing, and refinement, we launched the MindLift - a comprehensive solution for mental health support.</p>
                         </div>
                     </div>
                     <div class="timeline-item">
@@ -371,7 +372,7 @@
         <div class="container">
             <div class="footer-content">
                 <div class="footer-section">
-                    <h3>Mental Wellness Platform</h3>
+                    <h3>MindLift</h3>
                     <p>Your compassionate partner in mental health care.</p>
                     <div class="footer-social">
                         <a href="#"><i class="fab fa-facebook"></i></a>
@@ -400,7 +401,7 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2024 Mental Wellness Platform. All rights reserved.</p>
+                <p>&copy; 2024 MindLift. All rights reserved.</p>
                 <p>Built with ❤️ by CSE students, Sonargaon University</p>
             </div>
         </div>

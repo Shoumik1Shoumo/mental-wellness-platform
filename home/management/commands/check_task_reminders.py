@@ -101,7 +101,7 @@ class Command(BaseCommand):
             'You have not completed these tasks yet. Please complete your daily wellness tasks as soon as possible '
             'to continue your wellness progress.\n\n'
             'Thank you,\n'
-            'Mental Wellness Platform Team'
+            'MindLift Team'
         )
         subject = f'Daily wellness task reminder - {check_date.strftime("%B %d, %Y")}'
         send_configured_mail(subject, message, [user.email], fail_silently=False)

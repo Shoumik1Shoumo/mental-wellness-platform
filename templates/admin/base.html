@@ -2,7 +2,7 @@
 {% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}
 <html lang="{{ LANGUAGE_CODE|default:'en-us' }}" dir="{{ LANGUAGE_BIDI|yesno:'rtl,ltr,auto' }}">
 <head>
-    <title>{% block title %}Mental Wellness Platform Admin{% endblock %}</title>
+    <title>{% block title %}MindLift Admin{% endblock %}</title>
     <link rel="stylesheet" href="{% block stylesheet %}{% static 'admin/css/base.css' %}{% endblock %}">
     {% block dark-mode-vars %}{% endblock %}
     {% if not is_popup and is_nav_sidebar_enabled %}
@@ -32,7 +32,7 @@
             <header id="header" class="admin-topbar">
                 <div id="branding" class="admin-branding">
                     {% block branding %}
-                        <a href="{% url 'admin_dashboard' %}" class="admin-brand-link" aria-label="Mental Wellness Platform Admin">
+                        <a href="{% url 'admin_dashboard' %}" class="admin-brand-link" aria-label="MindLift Admin">
                             <span class="admin-brand-mark">MW</span>
                             <span class="admin-brand-copy">
                                 <strong>Mental Wellness</strong>
@@ -126,7 +126,7 @@
 
     <footer id="footer">
         {% block footer %}
-            <span>Mental Wellness Platform Admin</span>
+            <span>MindLift Admin</span>
         {% endblock %}
     </footer>
 </div>
